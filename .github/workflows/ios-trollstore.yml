@@ -60,8 +60,10 @@ jobs:
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
           xcodebuild -showBuildSettings -project "$PROJECT" -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" CODE_SIGNING_ALLOWED=NO
+          # Standalone Swift scripts under MinisTests/Standalone intentionally
+          # contain top-level executable statements and are not app sources.
           # Syntax parsing is not availability checking; archive is authoritative.
-          find src/ios -name '*.swift' -print0 | xargs -0 xcrun swiftc -frontend -parse
+          find src/ios -name '*.swift' ! -path 'src/ios/MinisTests/Standalone/*' -print0 | xargs -0 xcrun swiftc -frontend -parse
 
       - name: Build native dependencies
         shell: bash
