@@ -21,29 +21,29 @@ struct ShadowVoiceProviderDetailView: View {
     var body: some View {
         List {
             Section {
-                LabeledContent {
-                    Text(instance?.label ?? "—")
-                        .foregroundStyle(.secondary)
-                } label: {
+                IOS15LabeledContent(label: {
                     Label {
                         Text("Credential from", comment: "Shadow voice credential label")
                     } icon: {
                         styledIcon("key.fill", color: .blue)
                     }
+                }) {
+                    Text(instance?.label ?? "—")
+                        .foregroundStyle(.secondary)
                 }
                 if let base = instance?.effectiveCustomBaseURL {
-                    LabeledContent {
-                        Text(base)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    } label: {
+                    IOS15LabeledContent(label: {
                         Label {
                             Text("Endpoint", comment: "Shadow voice endpoint label")
                         } icon: {
                             styledIcon("link", color: .teal)
                         }
+                    }) {
+                        Text(base)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                     }
                 }
             } footer: {

@@ -193,17 +193,17 @@ struct SyncMigrationDetailView: View {
                     if vm.pendingPush > 0 {
                         IOS15LabeledContent(AppLocalized("Pending push"), value: "\(vm.pendingPush)")
                         if vm.pendingPushNew > 0 {
-                            LabeledContent {
-                                Text("\(vm.pendingPushNew)").foregroundStyle(.secondary)
-                            } label: {
+                            IOS15LabeledContent(label: {
                                 Text("· New writes").foregroundStyle(.secondary).font(.callout)
+                            }) {
+                                Text("\(vm.pendingPushNew)").foregroundStyle(.secondary)
                             }
                         }
                         if vm.pendingPushMigration > 0 {
-                            LabeledContent {
-                                Text("\(vm.pendingPushMigration)").foregroundStyle(.secondary)
-                            } label: {
+                            IOS15LabeledContent(label: {
                                 Text("· Migration backlog").foregroundStyle(.secondary).font(.callout)
+                            }) {
+                                Text("\(vm.pendingPushMigration)").foregroundStyle(.secondary)
                             }
                         }
                     } else {
@@ -235,11 +235,11 @@ struct SyncMigrationDetailView: View {
                vm.lastFailureMessage == nil, !vm.isCanceledByUser,
                vm.unmigratedHistoryCount > 0 {
                 Section {
-                    LabeledContent {
+                    IOS15LabeledContent(label: {
+                        Text("Eligible records")
+                    }) {
                         Text("\(vm.unmigratedHistoryCount)")
                             .foregroundStyle(.secondary)
-                    } label: {
-                        Text("Eligible records")
                     }
                     Button {
                         showRequestMigrationConfirm = true

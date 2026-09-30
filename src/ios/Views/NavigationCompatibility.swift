@@ -203,6 +203,12 @@ enum IOS15PresentationContentInteraction {
     case scrolls
 }
 
+enum IOS15ScrollDismissesKeyboardMode {
+    case immediately
+    case interactively
+    case never
+}
+
 struct IOS15NavigationContainer<Content: View>: View {
     private let content: Content
 
@@ -339,7 +345,15 @@ extension View {
     }
 
     @ViewBuilder
-    func scrollDismissesKeyboardCompat(_ mode: ScrollDismissesKeyboardMode) -> some View {
-        if #available(iOS 16.0, *) { scrollDismissesKeyboard(mode) } else { self }
+    func scrollDismissesKeyboardCompat(_ mode: IOS15ScrollDismissesKeyboardMode) -> some View {
+        if #available(iOS 16.0, *) {
+            switch mode {
+            case .immediately: scrollDismissesKeyboard(.immediately)
+            case .interactively: scrollDismissesKeyboard(.interactively)
+            case .never: scrollDismissesKeyboard(.never)
+            }
+        } else {
+            self
+        }
     }
 }

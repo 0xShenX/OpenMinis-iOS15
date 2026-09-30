@@ -200,6 +200,7 @@ struct BackupHistoryDetailView: View {
                         IOS15LabeledContent(label: { Text("Files excluded") }) {
                             Text("\(record.skippedFiles) file(s)")
                         }
+                    }
                 }
             }
             if let e = record.errorMessage {
