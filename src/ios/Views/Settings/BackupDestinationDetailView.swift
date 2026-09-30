@@ -225,7 +225,7 @@ struct BackupDestinationDetailView: View {
     private func remoteSections(_ r: RcloneRemoteStore.Remote) -> some View {
         let current = edited ?? r
         Section {
-            LabeledContent("Type",
+            IOS15LabeledContent("Type",
                            value: RcloneBackendCatalog.backend(for: current.backend)?.title
                            ?? current.backend.uppercased())
             // Name and folder are the two things a user actually revises
@@ -238,7 +238,7 @@ struct BackupDestinationDetailView: View {
                 draftName = current.name
                 showRename = true
             } label: {
-                LabeledContent("Name") {
+                IOS15LabeledContent(label: { Text("Name") }) {
                     HStack(spacing: 6) {
                         Text(current.name).foregroundStyle(.secondary)
                         Image(systemName: "chevron.right")
@@ -251,7 +251,7 @@ struct BackupDestinationDetailView: View {
             Button {
                 showFolderBrowser = true
             } label: {
-                LabeledContent("Backup folder") {
+                IOS15LabeledContent(label: { Text("Backup folder") }) {
                     HStack(spacing: 6) {
                         Text(current.path.isEmpty ? "/" : "/\(current.path)")
                             .foregroundStyle(.secondary)
@@ -272,9 +272,9 @@ struct BackupDestinationDetailView: View {
             ForEach(current.params.sorted(by: { $0.key < $1.key })
                         .filter { isShownField($0.key, backend: current.backend) },
                     id: \.key) { k, v in
-                LabeledContent(fieldLabel(k, backend: current.backend), value: v)
+                IOS15LabeledContent(fieldLabel(k, backend: current.backend), value: v)
             }
-            LabeledContent("Added", value: current.createdAt.formatted(date: .abbreviated,
+            IOS15LabeledContent("Added", value: current.createdAt.formatted(date: .abbreviated,
                                                                        time: .shortened))
 
             // Address and credentials change in the real world — a NAS
@@ -435,11 +435,11 @@ struct BackupDestinationDetailView: View {
     @ViewBuilder
     private func folderSections(_ f: MountedFolderEntry) -> some View {
         Section {
-            LabeledContent("Source", value: f.sourceDisplayName)
-            LabeledContent("Can save backups",
+            IOS15LabeledContent("Source", value: f.sourceDisplayName)
+            IOS15LabeledContent("Can save backups",
                            value: f.effectiveWritable ? AppLocalized("Yes")
                                                       : AppLocalized("No"))
-            LabeledContent("Added", value: f.createdAt.formatted(date: .abbreviated,
+            IOS15LabeledContent("Added", value: f.createdAt.formatted(date: .abbreviated,
                                                                  time: .shortened))
         } header: {
             Text("Configuration")

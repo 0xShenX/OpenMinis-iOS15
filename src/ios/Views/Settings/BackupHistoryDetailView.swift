@@ -120,7 +120,7 @@ struct BackupHistoryDetailView: View {
 
     private var summarySection: some View {
         Section {
-            LabeledContent("Status") {
+            IOS15LabeledContent(label: { Text("Status") }) {
                 // An HStack, NOT a Label. `Label` reserves an icon column and
                 // sizes it from the environment; dropped into LabeledContent's
                 // value slot that column stretched, making this one row 245pt
@@ -133,21 +133,22 @@ struct BackupHistoryDetailView: View {
                 }
                 .foregroundStyle(BackupHistoryRow.statusColour(record.status))
             }
-            LabeledContent("Started",
+            IOS15LabeledContent("Started",
                            value: record.startedAt.formatted(date: .abbreviated, time: .shortened))
             if let d = record.duration {
-                LabeledContent("Duration", value: durationText(d))
+                IOS15LabeledContent("Duration", value: durationText(d))
             }
             if record.totalBytes > 0 {
-                LabeledContent("Size", value: ByteCountFormatter.string(
+                IOS15LabeledContent("Size", value: ByteCountFormatter.string(
                     fromByteCount: record.totalBytes, countStyle: .file))
             }
             // `value:` takes a plain String, which does NOT route through the
             // string catalog the way a bare `Text("…")` literal does — so the
             // Yes/No here has to be localized explicitly or it stays English
             // in every locale.
-            LabeledContent("Encrypted",
-                           value: record.encrypted ? AppLocalized("Yes") : AppLocalized("No"))
+            IOS15LabeledContent(label: { Text("Encrypted") }) {
+                Text(record.encrypted ? AppLocalized("Yes") : AppLocalized("No"))
+            }
             if let name = record.packageName {
                 // A hand-built HStack, NOT `LabeledContent`.
                 //
@@ -191,14 +192,14 @@ struct BackupHistoryDetailView: View {
                 // "how many" but never "which ones", which is the actual
                 // question. Older records predate the list and stay plain.
                 if record.skippedEntries.isEmpty {
-                    LabeledContent("Files excluded", value: "\(record.skippedFiles) file(s)")
+                    IOS15LabeledContent("Files excluded", value: "\(record.skippedFiles) file(s)")
                 } else {
                     NavigationLink {
                         BackupSkippedFilesView(record: record)
                     } label: {
-                        LabeledContent("Files excluded",
-                                       value: "\(record.skippedFiles) file(s)")
-                    }
+                        IOS15LabeledContent(label: { Text("Files excluded") }) {
+                            Text("\(record.skippedFiles) file(s)")
+                        }
                 }
             }
             if let e = record.errorMessage {

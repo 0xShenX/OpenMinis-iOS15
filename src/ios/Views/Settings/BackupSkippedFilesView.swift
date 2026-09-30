@@ -45,8 +45,8 @@ struct BackupSkippedFilesView: View {
     var body: some View {
         List {
             Section {
-                LabeledContent("Files", value: "\(record.skippedFiles)")
-                LabeledContent("Total size", value: ByteCountFormatter.string(
+                IOS15LabeledContent("Files", value: "\(record.skippedFiles)")
+                IOS15LabeledContent("Total size", value: ByteCountFormatter.string(
                     fromByteCount: record.skippedEntries.reduce(0) { $0 + $1.size },
                     countStyle: .file))
             } footer: {

@@ -45,13 +45,13 @@ struct SoulSettingsView: View {
             }
 
             Section(AppLocalized("Identity")) {
-                LabeledContent(AppLocalized("Name")) {
+                IOS15LabeledContent(AppLocalized("Name")) {
                     TextField("Minis", text: $name)
                         .multilineTextAlignment(.trailing)
                         .textInputAutocapitalization(.words)
                         .submitLabel(.done)
                 }
-                LabeledContent(AppLocalized("Style")) {
+                IOS15LabeledContent(AppLocalized("Style")) {
                     TextField(AppLocalized("e.g. Warm, direct, opinionated"), text: $style)
                         .multilineTextAlignment(.trailing)
                 }

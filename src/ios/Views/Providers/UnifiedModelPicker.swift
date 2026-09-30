@@ -671,7 +671,7 @@ struct UnifiedModelPicker: View {
                 return
             }
             searchDebounceTask = Task { @MainActor in
-                try? await Task.sleep(for: Self.searchDebounce)
+                try? await Task.sleep(nanoseconds: 120_000_000)
                 guard !Task.isCancelled else { return }
                 debouncedSearch = trimmed
             }

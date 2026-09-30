@@ -1,5 +1,35 @@
 import SwiftUI
 
+/// A compact replacement for SwiftUI's iOS 16-only LabeledContent.
+/// Keeping this local avoids making settings screens unavailable on iOS 15.
+struct IOS15LabeledContent<Label: View, Content: View>: View {
+    private let label: Label
+    private let content: Content
+
+    init(@ViewBuilder label: () -> Label, @ViewBuilder content: () -> Content) {
+        self.label = label()
+        self.content = content()
+    }
+
+    init<V: StringProtocol>(_ title: V, value: String) where Label == Text, Content == Text {
+        self.label = Text(title)
+        self.content = Text(value)
+    }
+
+    init<V: StringProtocol>(_ title: V, @ViewBuilder content: () -> Content) where Label == Text {
+        self.label = Text(title)
+        self.content = content()
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            label
+            Spacer(minLength: 8)
+            content.multilineTextAlignment(.trailing)
+        }
+    }
+}
+
 /// Value navigation that keeps the iOS 16 implementation while providing an
 /// iOS 15 NavigationView fallback. The fallback builds one hidden link per
 /// path depth so a multi-level route has a real UIKit back stack.

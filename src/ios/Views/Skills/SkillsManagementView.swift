@@ -507,14 +507,14 @@ private struct SkillDetailView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    LabeledContent("Version", value: skill.version)
+                    IOS15LabeledContent("Version", value: skill.version)
                     if let modDate = latestFileModDate {
-                        LabeledContent("Last Modified") {
+                        IOS15LabeledContent("Last Modified") {
                             Text(Self.relativeTime(modDate))
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    LabeledContent("Source") {
+                    IOS15LabeledContent("Source") {
                         switch skill.importSource {
                         case .url(let url):
                             Text(url)
@@ -529,7 +529,7 @@ private struct SkillDetailView: View {
                             Text(AppLocalized("Session created")).foregroundStyle(.secondary)
                         }
                     }
-                    LabeledContent(AppLocalized("Usage")) {
+                    IOS15LabeledContent(AppLocalized("Usage")) {
                         let freq = store.usageFrequency(for: skill.id)
                         Text(usageFrequencyLabel(freq))
                             .foregroundStyle(usageFrequencyColor(freq))
