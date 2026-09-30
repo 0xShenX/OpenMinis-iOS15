@@ -13,6 +13,82 @@ import Combine
 import SwiftUI
 import UIKit
 
+/// Preserve native hosting on iOS 16; use a retained controller on iOS 15.
+struct MinisHostingConfiguration<Content: View>: UIContentConfiguration {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    func minSize(width: CGFloat, height: CGFloat) -> Self { self }
+    func margins(_ edges: Edge.Set, _ length: CGFloat) -> Self { self }
+
+    func resolved() -> UIContentConfiguration {
+        if #available(iOS 16.0, *) {
+            return UIHostingConfiguration { content }
+                .minSize(width: 0, height: 0).margins(.all, 0)
+        }
+        return self
+    }
+
+    func makeContentView() -> UIView & UIContentView {
+        LegacyHostingContentView(configuration: self)
+    }
+
+    func updated(for state: UIConfigurationState) -> Self { self }
+}
+
+private final class LegacyHostingContentView<Content: View>: UIView, UIContentView {
+    private var storedConfiguration: MinisHostingConfiguration<Content>
+    private let controller: UIHostingController<Content>
+
+    var configuration: UIContentConfiguration {
+        get { storedConfiguration }
+        set {
+            guard let value = newValue as? MinisHostingConfiguration<Content> else { return }
+            storedConfiguration = value
+            controller.rootView = value.content
+            invalidateIntrinsicContentSize()
+        }
+    }
+
+    init(configuration: MinisHostingConfiguration<Content>) {
+        storedConfiguration = configuration
+        controller = UIHostingController(rootView: configuration.content)
+        super.init(frame: .zero)
+        backgroundColor = .clear
+        controller.view.backgroundColor = .clear
+        controller.view.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(controller.view)
+        NSLayoutConstraint.activate([
+            controller.view.leadingAnchor.constraint(equalTo: leadingAnchor),
+            controller.view.trailingAnchor.constraint(equalTo: trailingAnchor),
+            controller.view.topAnchor.constraint(equalTo: topAnchor),
+            controller.view.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
+
+    override var intrinsicContentSize: CGSize {
+        guard bounds.width > 0 else { return CGSize(width: UIView.noIntrinsicMetric, height: 1) }
+        let target = CGSize(width: bounds.width, height: UIView.layoutFittingCompressedSize.height)
+        let size = controller.view.systemLayoutSizeFitting(
+            target,
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        return CGSize(width: UIView.noIntrinsicMetric, height: ceil(size.height))
+    }
+
+    override func layoutSubviews() {
+        let previousWidth = controller.view.bounds.width
+        super.layoutSubviews()
+        if previousWidth != bounds.width { invalidateIntrinsicContentSize() }
+    }
+}
+
 // MARK: - MessageListItem
 
 /// Item identifier for the diffable data source.

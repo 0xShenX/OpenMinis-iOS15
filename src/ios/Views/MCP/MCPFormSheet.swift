@@ -94,7 +94,7 @@ struct MCPFormSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             Form {
                 Section {
                     TextField(AppLocalized("Server name"), text: $name)
@@ -125,7 +125,7 @@ struct MCPFormSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppLocalized("Cancel")) { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button {
                             // Defer the side effect to the next runloop tick: on
@@ -148,7 +148,7 @@ struct MCPFormSheet: View {
                 }
             }
             // Full-width primary Save pinned to the bottom, above the keyboard.
-            .safeAreaInset(edge: .bottom) {
+            .safeAreaInsetCompat(edge: .bottom) {
                 Button(action: save) {
                     Text("Save")
                         .font(.headline)

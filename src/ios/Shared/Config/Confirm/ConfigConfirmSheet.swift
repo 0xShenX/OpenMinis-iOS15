@@ -37,7 +37,7 @@ struct ConfigConfirmSheet: View {
 
     @ViewBuilder
     private func sheetBody(change: PendingConfigChange) -> some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             VStack(spacing: 0) {
                 if let caption = change.caption, !caption.isEmpty {
                     Text(caption)
@@ -59,12 +59,12 @@ struct ConfigConfirmSheet: View {
                              : "Confirm change")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel", role: .cancel) {
                         gate.userReject()
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(approvedCount == 0 ? "Reject All" : "Apply") {
                         confirmSheetLogger.info("tap primary pending=\(change.id) items=\(workingItems.count) approved=\(approvedCount)")
                         gate.userApprove(items: workingItems)
@@ -74,8 +74,8 @@ struct ConfigConfirmSheet: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.75)])
-        .interactiveDismissDisabled()    // force explicit Apply / Cancel
+        .presentationDetentsCompat([.height(560)])
+        .interactiveDismissDisabledCompat()    // force explicit Apply / Cancel
     }
 
     private var approvedCount: Int {

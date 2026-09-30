@@ -1,5 +1,4 @@
 import SwiftUI
-import PhotosUI
 
 /// Settings page for SOUL.md — Minis's persistent personality file.
 /// Lives between Skills and Memory in the Agent Runtime section.
@@ -16,7 +15,7 @@ struct SoulSettingsView: View {
     @State private var showEmojiPrompt = false
     @State private var emojiDraft = ""
     @State private var showPhotoPicker = false
-    @State private var photoItem: PhotosPickerItem? = nil
+    @State private var pickedImageData: Data?
     @State private var iconError: String? = nil
     @State private var style: String = SoulMetadata.default.style
     @State private var lang: String = SoulMetadata.default.lang
@@ -111,7 +110,7 @@ struct SoulSettingsView: View {
         .navigationTitle(AppLocalized("Soul"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(AppLocalized("Save")) { save() }
                     .disabled(!isDirty || isBodyOverLimit)
             }
@@ -135,7 +134,7 @@ struct SoulSettingsView: View {
             showEmojiPrompt: $showEmojiPrompt,
             emojiDraft: $emojiDraft,
             showPhotoPicker: $showPhotoPicker,
-            photoItem: $photoItem,
+            pickedImageData: $pickedImageData,
             iconError: $iconError
         ))
         .overlay(alignment: .bottom) {
@@ -246,7 +245,7 @@ struct SoulSettingsView: View {
             TextEditor(text: $bodyText)
                 .frame(minHeight: 220)
                 .font(.system(.body, design: .monospaced))
-                .scrollContentBackground(.hidden)
+                .scrollContentBackgroundCompat(.hidden)
             // SwiftUI's TextEditor has no native placeholder. We render
             // a greyed hint on top when the body is empty + not being
             // typed into. allowsHitTesting(false) so taps fall through
@@ -423,7 +422,7 @@ private struct SoulEmojiPickerSheet: View {
     ]
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             VStack(spacing: 20) {
                 // Live preview at the size the chat header actually uses, so
                 // the user judges the glyph at its real scale rather than at
@@ -482,10 +481,10 @@ private struct SoulEmojiPickerSheet: View {
             .navigationTitle(AppLocalized("Choose Emoji"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button(AppLocalized("Cancel")) { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(AppLocalized("Set")) {
                         onPick(draft)
                         dismiss()
@@ -494,7 +493,7 @@ private struct SoulEmojiPickerSheet: View {
                 }
             }
         }
-        .presentationDetents([.height(380)])
+        .presentationDetentsCompat([.height(380)])
     }
 
     /// Keep at most one emoji, preferring whatever the user just added.
@@ -523,7 +522,7 @@ private struct SoulIconEditing: ViewModifier {
     @Binding var showEmojiPrompt: Bool
     @Binding var emojiDraft: String
     @Binding var showPhotoPicker: Bool
-    @Binding var photoItem: PhotosPickerItem?
+    @Binding var pickedImageData: Data?
     @Binding var iconError: String?
 
     func body(content: Content) -> some View {
@@ -535,13 +534,17 @@ private struct SoulIconEditing: ViewModifier {
                     icon = chosen
                 }
             }
-            .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem,
-                          matching: .images, photoLibrary: .shared())
-            // Single-parameter form: the two-parameter `onChange` is iOS 17+,
-            // and this target still deploys lower.
-            .onChange(of: photoItem) { newItem in
-                guard let newItem else { return }
-                Task { await applyPickedImage(newItem) }
+            .sheet(isPresented: $showPhotoPicker) {
+                IOS15MediaPicker(selectionLimit: 1) { media in
+                    guard let first = media.first,
+                          first.contentType.conforms(to: .image),
+                          let data = first.data else {
+                        iconError = AppLocalized("That image couldn't be read.")
+                        return
+                    }
+                    pickedImageData = data
+                    applyPickedImage(data)
+                }
             }
             .alert(AppLocalized("Can't use that image"),
                    isPresented: Binding(get: { iconError != nil },
@@ -569,25 +572,14 @@ private struct SoulIconEditing: ViewModifier {
     }
 
     /// Load, validate and normalize a picked photo into the stored form.
-    private func applyPickedImage(_ item: PhotosPickerItem) async {
-        defer { photoItem = nil }
-        guard let data = try? await item.loadTransferable(type: Data.self),
-              let image = UIImage(data: data) else {
-            await MainActor.run { iconError = AppLocalized("That image couldn't be read.") }
+    private func applyPickedImage(_ data: Data) {
+        guard let image = UIImage(data: data) else {
+            iconError = AppLocalized("That image couldn't be read.")
             return
         }
-        // [T-soul-icon-opaque-rounded] Opaque images are accepted now — the
-        // transparency requirement was a presentation concern and moved to
-        // `SoulIconView`, which clips every image to a rounded rectangle. Only
-        // an undecodable image is refused here, so this path and the
-        // `minis-config` path apply exactly the same rule.
         switch SoulIconImage.encode(image) {
-        case .success(let uri):
-            await MainActor.run { icon = uri }
-        case .failure:
-            await MainActor.run {
-                iconError = AppLocalized("That image couldn't be read.")
-            }
+        case .success(let uri): icon = uri
+        case .failure: iconError = AppLocalized("That image couldn't be read.")
         }
     }
 }

@@ -11,7 +11,7 @@ struct AIDataSharingConsentView: View {
     var onDecline: () -> Void
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -84,7 +84,7 @@ struct AIDataSharingConsentView: View {
                 }
                 .padding()
             }
-            .safeAreaInset(edge: .bottom) {
+            .safeAreaInsetCompat(edge: .bottom) {
                 VStack(spacing: 10) {
                     Button {
                         UserDefaults.standard.set(true, forKey: aiDataSharingConsentKey)
@@ -287,7 +287,7 @@ struct AddProviderView: View {
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 if selectedType != nil {
                     Button("Back") { goBack() }
                 } else {
@@ -300,7 +300,7 @@ struct AddProviderView: View {
             // gesture bounces instead of silently discarding, and this button
             // is the visible path to the save/discard choice — the same
             // pattern as Mail's compose sheet.
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 if selectedType != nil {
                     Button {
                         requestExit()
@@ -313,7 +313,7 @@ struct AddProviderView: View {
         }
         // Block the interactive pull-down while input would be lost; exits
         // then go through requestExit()'s confirmation.
-        .interactiveDismissDisabled(hasUnsavedInput)
+        .interactiveDismissDisabledCompat(hasUnsavedInput)
         .confirmationDialog(
             AppLocalized("You have unsaved provider settings."),
             isPresented: $showUnsavedExitDialog,
@@ -339,7 +339,7 @@ struct AddProviderView: View {
                     cleanupAndDismiss()
                 }
             )
-            .interactiveDismissDisabled()
+            .interactiveDismissDisabledCompat()
         }
         .sheet(isPresented: $showKimiLogin) {
             // [T-kimi-oauth] RFC 8628 device-code login. On success, mark the

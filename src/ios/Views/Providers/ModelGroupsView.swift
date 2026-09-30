@@ -138,17 +138,17 @@ struct ModelGroupsView: View {
         .navigationTitle("Model Groups")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAddAgentModels) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 UnifiedModelPicker(config: .agentLoopAddModels())
             }
         }
         .sheet(isPresented: $showAddAgentGroups) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 AddAgentLoopGroupsSheet()
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button {
                         showCreateGroup = true

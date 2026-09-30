@@ -30,7 +30,7 @@ struct KimiDeviceLoginSheet: View {
     @State private var loginTask: Task<Void, Never>?
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             VStack(spacing: 24) {
                 switch phase {
                 case .starting:
@@ -70,7 +70,7 @@ struct KimiDeviceLoginSheet: View {
                 }
             }
         }
-        .interactiveDismissDisabled(phase == .starting)
+        .interactiveDismissDisabledCompat(phase == .starting)
         .onAppear { start() }
         // [T-copilot-safari-cancels-poll] Same defect as the Copilot sheet, and
         // the same fix. `presentSafari` presents on the TOP view controller,

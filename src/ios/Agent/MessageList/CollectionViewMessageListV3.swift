@@ -1378,7 +1378,7 @@ extension CollectionViewMessageListV3 {
                 let message = messages[msgIdx]
                 let bridge = getOrCreateBridge(for: message, in: messages)
                 cell.backgroundColor = .clear
-                let config = UIHostingConfiguration {
+                let config = MinisHostingConfiguration {
                     BridgedWholeMessageV3(
                         message: message,
                         bridge: bridge,
@@ -1404,19 +1404,19 @@ extension CollectionViewMessageListV3 {
                     // [T-ios-tool-capsule-vm-envobject-crash]
                     .environmentObject(vm)
                 }.minSize(width: 0, height: 0).margins(.all, 0)
-                cell.applyContentConfiguration(config)
+                cell.applyContentConfiguration(config.resolved())
 
             case .assistantHeader(let msgId):
                 guard let msgIdx = messageIndex[msgId], msgIdx < messages.count else { return }
                 let message = messages[msgIdx]
                 cell.backgroundColor = .clear
-                let config = UIHostingConfiguration {
+                let config = MinisHostingConfiguration {
                     BridgedAssistantHeaderV3(message: message, maxWidth: width,
                                             onOpenSoulSettings: onOpenSoulSettings)
                         .transaction { $0.disablesAnimations = true }
                         .environmentObject(vm)
                 }.minSize(width: 0, height: 0).margins(.all, 0)
-                cell.applyContentConfiguration(config)
+                cell.applyContentConfiguration(config.resolved())
 
             case .assistantBlock(let msgId, let blockId):
                 guard let msgIdx = messageIndex[msgId], msgIdx < messages.count else {
@@ -1430,7 +1430,7 @@ extension CollectionViewMessageListV3 {
                 }
                 let bridge = getOrCreateBridge(for: message, in: messages)
                 cell.backgroundColor = .clear
-                let config = UIHostingConfiguration {
+                let config = MinisHostingConfiguration {
                     BridgedAssistantBlockV3(
                         block: block,
                         message: message,
@@ -1440,14 +1440,14 @@ extension CollectionViewMessageListV3 {
                     .transaction { $0.disablesAnimations = true }
                     .environmentObject(vm)
                 }.minSize(width: 0, height: 0).margins(.all, 0)
-                cell.applyContentConfiguration(config)
+                cell.applyContentConfiguration(config.resolved())
 
             case .assistantFooter(let msgId):
                 guard let msgIdx = messageIndex[msgId], msgIdx < messages.count else { return }
                 let message = messages[msgIdx]
                 let bridge = getOrCreateBridge(for: message, in: messages)
                 cell.backgroundColor = .clear
-                let config = UIHostingConfiguration {
+                let config = MinisHostingConfiguration {
                     BridgedAssistantFooterV3(
                         message: message,
                         bridge: bridge,
@@ -1456,7 +1456,7 @@ extension CollectionViewMessageListV3 {
                     .transaction { $0.disablesAnimations = true }
                     .environmentObject(vm)
                 }.minSize(width: 0, height: 0).margins(.all, 0)
-                cell.applyContentConfiguration(config)
+                cell.applyContentConfiguration(config.resolved())
             }
 
             // [T-ios-scroll-decel-height-drift] Seed this cell with the real
@@ -5868,7 +5868,7 @@ private struct SheetOverlayView: View {
             // page) that hides the page's bar for good. Pin visible so the
             // bridged state can never be "hidden"; a no-op where the bar is
             // already shown.
-            .toolbar(.visible, for: .navigationBar)
+            .toolbarVisibilityCompat(.visible, for: .navigationBar)
             .sheet(item: $toolPresenter.sheetData) { data in
                 // [T-agent-tool-sheet-unified] Every tool block — the agent
                 // block included — opens the same live sheet (this is the

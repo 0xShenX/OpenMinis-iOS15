@@ -344,6 +344,7 @@ struct AIChatView: View {
     @State private var isDropTargeted = false
     @State private var showCamera = false
     @State private var showPhotoPicker = false
+    @State private var mediaImportProgress: [UUID: Progress] = [:]
     @State private var showDocumentPicker = false
     @State private var showMoveToSheet = false
     @State private var showClearChatConfirm = false
@@ -399,7 +400,7 @@ struct AIChatView: View {
     @State private var pendingProviderImport: PendingProviderImport?
     @State private var providerImportResult: String?
     @State private var screenshotPreview: ChatScreenshotPreview?
-    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var selectedPhotoMedia: [IOS15PickedMedia] = []
     @State private var attachmentGridHeight: CGFloat = 0
     @State private var transcriptHeight: CGFloat = 0
     /// Tracks how much of recognizedText has already been appended to inputText.
@@ -513,7 +514,7 @@ struct AIChatView: View {
         ZStack {
             // Messages — floating tool preview overlaid at bottom
             messagesArea
-                .safeAreaInset(edge: .top, spacing: 0) {
+                .safeAreaInsetCompat(edge: .top, spacing: 0) {
                     // Error banner
                     if let error = vm.errorMessage {
                         errorBanner(error)
@@ -821,7 +822,7 @@ struct AIChatView: View {
         }
         .sheet(item: $locateDownloadTarget) { target in
             if let sid = vm.sessionId {
-                NavigationStack {
+                IOS15NavigationContainer {
                     FileBrowserView(
                         rootPath: AIChatViewModel.minisWorkspacePersistentDir(for: sid),
                         rootLabel: "/var/minis/workspace",
@@ -962,8 +963,8 @@ struct AIChatView: View {
         }
         .sheet(item: $previewAudioFile) { fileURL in
             MinisAudioPreviewView(fileURL: fileURL)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
+                .presentationDetentsCompat([.large])
+                .presentationDragIndicatorCompat(.hidden)
         }
         .sheet(item: $previewTextFile) { fileURL in
             MinisTextPreviewView(fileURL: fileURL)
@@ -1047,7 +1048,7 @@ struct AIChatView: View {
             })
         }
         .sheet(isPresented: $showFileBrowser) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 let base = RootfsManager.shared.dataPath
                 FileBrowserView(rootPath: base, initialPath: base.appendingPathComponent("var/minis"), rootLabel: "/")
             }
@@ -1058,16 +1059,16 @@ struct AIChatView: View {
             })
         }
         .sheet(isPresented: $showModelPicker) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 SessionModelPicker(sessionId: vm.sessionId) {
                     await vm.ensureSessionReturningId()
                 }
             }
-            .presentationDetents([.large])
+            .presentationDetentsCompat([.large])
         }
         .sheet(isPresented: $showTokenUsage) {
             TokenUsageSheet(vm: cached.vm)
-                .presentationDetents([.fraction(0.8), .large])
+                .presentationDetentsCompat([.height(600), .large])
         }
         .sheet(item: $screenshotPreview) { preview in
             ChatScreenshotPreviewSheet(image: preview.image)
@@ -1154,7 +1155,7 @@ struct AIChatView: View {
         .fullScreenCover(isPresented: $showTerminal) {
             terminalInitCommand = nil
         } content: {
-            NavigationStack {
+            IOS15NavigationContainer {
                 ISHTerminalView(sessionId: vm.sessionId, showCloseButton: true, initCommand: terminalInitCommand)
                     .onAppear {
                         if let sid = vm.sessionId {
@@ -1198,65 +1199,10 @@ struct AIChatView: View {
                 }
             )
         }
-        .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhotoItems,
-                      maxSelectionCount: 50, matching: .any(of: [.images, .videos]))
-        .onChange(of: selectedPhotoItems) { items in
-            guard !items.isEmpty else { return }
-            // [T-ios-photo-pick-placeholder] 1) Insert a loading placeholder chip
-            // for every picked item RIGHT NOW (one main-actor batch update), so the
-            // user immediately sees how many they picked instead of watching photos
-            // trickle in one-by-one. 2) Load all of them CONCURRENTLY via a
-            // TaskGroup. 3) Resolve each placeholder in place as its bytes arrive
-            // (success → real thumbnail, failure → error chip). The send button is
-            // gated on `hasLoadingAttachments` until every item settles.
-            let kinds = items.map { item -> InputAttachment.Kind in
-                item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) ? .video : .image
-            }
-            let placeholderIDs = vm.addLoadingPlaceholders(kinds: kinds)
-
-            // Snapshot per-item metadata synchronously (PHAsset fetch + UTI) so the
-            // concurrent loaders don't touch SwiftUI state or PhotosUI mid-flight.
-            struct PickJob { let id: UUID; let item: PhotosPickerItem; let isVideo: Bool; let ext: String?; let date: Date? }
-            let jobs: [PickJob] = zip(placeholderIDs, items).map { pid, item in
-                let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) })
-                var assetDate: Date?
-                if let aid = item.itemIdentifier,
-                   let asset = PHAsset.fetchAssets(withLocalIdentifiers: [aid], options: nil).firstObject {
-                    assetDate = asset.creationDate
-                }
-                let ext = item.supportedContentTypes
-                    .first(where: { $0.conforms(to: .image) })?
-                    .preferredFilenameExtension
-                return PickJob(id: pid, item: item, isVideo: isVideo, ext: ext, date: assetDate)
-            }
-            selectedPhotoItems = []
-
-            Task {
-                await withTaskGroup(of: Void.self) { group in
-                    for job in jobs {
-                        group.addTask {
-                            if job.isVideo {
-                                if let videoURL = try? await job.item.loadTransferable(type: VideoFileTransferable.self) {
-                                    await MainActor.run {
-                                        vm.finalizeVideoPlaceholder(id: job.id, from: videoURL.url, originalDate: job.date)
-                                    }
-                                } else {
-                                    await MainActor.run { vm.markPlaceholderFailed(id: job.id) }
-                                }
-                            } else if let data = try? await job.item.loadTransferable(type: Data.self) {
-                                // Preserve original encoded bytes (PNG transparency,
-                                // HEIC, animated GIFs, EXIF) — written verbatim.
-                                await MainActor.run {
-                                    vm.finalizeImagePlaceholder(id: job.id, data: data, fileExtension: job.ext, originalDate: job.date)
-                                }
-                            } else {
-                                await MainActor.run { vm.markPlaceholderFailed(id: job.id) }
-                            }
-                        }
-                    }
-                }
-            }
+        .sheet(isPresented: $showPhotoPicker) {
+            IOS15MediaPicker(selectionLimit: 50, onSelection: importPickedMedia)
         }
+        .onDisappear { cancelMediaImport() }
         .fileImporter(
             isPresented: $showDocumentPicker,
             allowedContentTypes: [.image, .pdf, .plainText, .json, .sourceCode, .presentation, .spreadsheet, .data],
@@ -1439,7 +1385,7 @@ struct AIChatView: View {
             // transcript editor) still holds focus leaves the keyboard's inset
             // reserved on the WINDOW, and SwiftUI's automatic keyboard avoidance
             // applies that window-wide. The home screen's New/Search FAB row is a
-            // `.safeAreaInset(edge: .bottom)` (ContentView 1213/1326) with no
+            // `.safeAreaInsetCompat(edge: .bottom)` (ContentView 1213/1326) with no
             // `.ignoresSafeArea(.keyboard)` opt-out, so it reads that inflated
             // bottom safe area and floats upward — the reported symptom. Same
             // failure class as the offscreen-WebView phantom keyboard (8232308a)
@@ -2089,6 +2035,36 @@ struct AIChatView: View {
         }
     }
 
+    private func cancelMediaImport() {
+        for (id, progress) in mediaImportProgress {
+            progress.cancel()
+            vm.markPlaceholderFailed(id: id)
+        }
+        mediaImportProgress.removeAll()
+    }
+
+    private func importPickedMedia(_ results: [PHPickerResult]) {
+        guard !results.isEmpty else { return }
+        let kinds = results.map { IOS15MediaPicker.contentType(for: $0).conforms(to: .movie) ? InputAttachment.Kind.video : .image }
+        let ids = vm.addLoadingPlaceholders(kinds: kinds)
+        for (id, result) in zip(ids, results) {
+            mediaImportProgress[id] = IOS15MediaPicker.load(result) { item in
+                if let url = item.fileURL {
+                    defer { try? FileManager.default.removeItem(at: url) }
+                    guard mediaImportProgress.removeValue(forKey: id) != nil else { return }
+                    vm.finalizeVideoPlaceholder(id: id, from: url, originalDate: nil)
+                } else {
+                    guard mediaImportProgress.removeValue(forKey: id) != nil else { return }
+                    if let data = item.data {
+                        vm.finalizeImagePlaceholder(id: id, data: data, fileExtension: item.contentType.preferredFilenameExtension, originalDate: nil)
+                    } else {
+                        vm.markPlaceholderFailed(id: id)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Navigation Title + Model Selector
 
     /// [T-ios-navbar-toolbar-host] Principal toolbar content, extracted from
@@ -2562,7 +2538,7 @@ struct AIChatView: View {
                     showThinkingLevelSheet = false
                 }
             )
-            .presentationDetents([.medium])
+            .presentationDetentsCompat([.medium])
         }
     }
 
@@ -5232,8 +5208,8 @@ private struct ProviderImportSheet: View {
             }
         }
         .padding(24)
-        .presentationDetents([.height(360), .medium])
-        .presentationDragIndicator(.visible)
+        .presentationDetentsCompat([.height(360), .medium])
+        .presentationDragIndicatorCompat(.visible)
         // Swipe-to-dismiss without tapping a button still needs cleanup.
         .onDisappear { if !chose { onCancel() } }
     }
@@ -5536,7 +5512,7 @@ private struct ChatToolbarHost<Title: View, Trailing: View>: View, Equatable {
             .allowsHitTesting(false)
             .toolbar {
                 ToolbarItem(placement: .principal) { title() }
-                ToolbarItem(placement: .topBarTrailing) { trailing() }
+                ToolbarItem(placement: .navigationBarTrailing) { trailing() }
             }
     }
 }
@@ -6032,7 +6008,7 @@ private struct MoveToSessionSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             List {
                 if !isSearching {
                     Button {
@@ -6448,7 +6424,7 @@ private struct SpeechLanguagePickerSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             List {
                 let preferred = filteredLocales.filter { preferredCodes.contains($0.language.languageCode?.identifier ?? "") }
                 let others = filteredLocales.filter { !preferredCodes.contains($0.language.languageCode?.identifier ?? "") }
@@ -6480,7 +6456,7 @@ private struct SpeechLanguagePickerSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetentsCompat([.medium, .large])
     }
 
     private func languageRow(_ loc: Locale) -> some View {
@@ -6520,7 +6496,7 @@ struct CompactSummarySheet: View {
     @State private var showRevertConfirm = false
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             VStack(spacing: 0) {
                 SelectableTextView(text: summary)
                     .padding(.horizontal, 16)
@@ -6545,13 +6521,13 @@ struct CompactSummarySheet: View {
             .navigationTitle("Compact Summary")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
                     }
                 }
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         UIPasteboard.general.string = summary
                         copied = true
@@ -6573,7 +6549,7 @@ struct CompactSummarySheet: View {
                 Text("The summary will be discarded and the messages it covered will become active again. This may push the conversation past the model's context window — if that happens, long-press a message to re-compact from that point.")
             }
         }
-        .presentationDetents([.large])
+        .presentationDetentsCompat([.large])
     }
 }
 
@@ -6616,7 +6592,7 @@ private struct TokenUsageSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             List {
                 let s = vm.sessionTokenStats
 
@@ -6672,7 +6648,7 @@ private struct TokenUsageSheet: View {
             .navigationTitle("Session Token Usage")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                 }
             }

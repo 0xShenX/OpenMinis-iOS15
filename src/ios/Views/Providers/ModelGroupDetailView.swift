@@ -349,10 +349,10 @@ struct ModelGroupDetailView: View {
                 }
             }
         }
-        .scrollDismissesKeyboard(.interactively)
+        .scrollDismissesKeyboardCompat(.interactively)
         .environment(\.editMode, $editMode)
         .sheet(isPresented: $showAddModels) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 UnifiedModelPicker(config: addModelsConfig())
             }
         }

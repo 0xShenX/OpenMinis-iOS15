@@ -41,7 +41,17 @@ class LogManagementViewModel: ObservableObject {
     }
 }
 
-// MARK: - Log Management View
+private struct LogShareSheet: UIViewControllerRepresentable {
+    let urls: [URL]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let safe = urls.map { MinisShareSheet.sanitizedShareURL($0) ?? $0 }
+        return UIActivityViewController(activityItems: safe, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
 
 struct LogManagementView: View {
     @StateObject private var vm = LogManagementViewModel()
@@ -195,7 +205,7 @@ struct LogManagementView: View {
         }
         .toolbar {
             if !vm.logFiles.isEmpty && tab == "logs" {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showShareSheet = true
                     } label: {
@@ -226,6 +236,7 @@ struct LogDetailView: View {
     let name: String
     @State private var content: String = ""
     @State private var isLoading = true
+    @State private var shareURL: URL?
 
     var body: some View {
         Group {
@@ -238,9 +249,14 @@ struct LogDetailView: View {
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                ShareLink(item: url)
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { shareURL = url }) {
+                    Image(systemName: "square.and.arrow.up")
+                }
             }
+        }
+        .sheet(item: $shareURL) { url in
+            LogShareSheet(urls: [url])
         }
         .task {
             let fileURL = url

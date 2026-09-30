@@ -764,7 +764,7 @@ private struct FolderPickerSheet: View {
     private var sessionCount: Int { sessionIds.count }
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             List {
                 Section {
                     HStack {
@@ -949,7 +949,7 @@ private struct FolderPickerSheet: View {
                              : LocalizedStringKey("Move \(sessionCount) to Group"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Cancel") { dismiss() }
                 }
             }
@@ -1439,7 +1439,7 @@ struct ContentView: View {
     /// Whether the initial session load has completed (prevents showing the list before we decide to auto-navigate).
     @State private var didInitialLoad = false
     /// Controls sidebar visibility on iPad (automatic handles iPhone collapse).
-    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+    @State private var columnVisibility: IOS15ColumnVisibility = .automatic
 
     /// Launch screen preference: 0=Auto, 1=Last Session, 2=New Chat.
     @AppStorage("launchScreen") private var launchScreen: Int = 0
@@ -1515,7 +1515,7 @@ struct ContentView: View {
     /// Whether the current window is wide enough for two-column layout.
     @State private var isWideLayout = false
     /// Navigation path for stack (compact) layout.
-    @State private var navigationPath = NavigationPath()
+    @State private var navigationPath = IOS15NavigationPath()
     /// Tracks the session ID currently visible on the compact navigation stack.
     @State private var currentStackSessionId: String?
     /// [T-ios-stacknav-transition-attributegraph-race] Compact-layout analogue
@@ -1596,7 +1596,7 @@ struct ContentView: View {
     ///
     /// Carries the deferral instant so a stale request can be dropped rather
     /// than flushed — see `pendingBackgroundNavigationTTL`.
-    @State private var pendingBackgroundNavigation: (path: NavigationPath, deferredAt: Date)?
+    @State private var pendingBackgroundNavigation: (path: IOS15NavigationPath, deferredAt: Date)?
 
     /// [T-ios-bg-nav-push-watchdog] How long a deferred push stays valid.
     ///
@@ -1820,7 +1820,7 @@ struct ContentView: View {
             }
         }
         .fullScreenCover(isPresented: $showTerminal) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 ISHTerminalView(showCloseButton: true)
             }
         }
@@ -1832,10 +1832,10 @@ struct ContentView: View {
             case .settings:
                 SettingsSheet(showTerminal: $showTerminal)
             case .rootfsManagement:
-                NavigationStack {
+                IOS15NavigationContainer {
                     RootfsManagementView()
                         .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
+                            ToolbarItem(placement: .navigationBarTrailing) {
                                 Button("Done") { activeToolSheet = nil }
                             }
                         }
@@ -1843,14 +1843,14 @@ struct ContentView: View {
             case .browser:
                 BrowserSheetView(pool: browserPool)
             case .browserManagement:
-                NavigationStack {
+                IOS15NavigationContainer {
                     BrowserManagementView(pool: browserPool)
                 }
             case .syncMigrationDetail:
-                NavigationStack {
+                IOS15NavigationContainer {
                     SyncMigrationDetailView()
                         .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
+                            ToolbarItem(placement: .navigationBarTrailing) {
                                 Button("Done") { activeToolSheet = nil }
                             }
                         }
@@ -1876,7 +1876,7 @@ struct ContentView: View {
             .onAppear {
                 print("[DELETE] Sheet appeared. singleDeleteInfo is \(singleDeleteInfo == nil ? "nil" : "non-nil, sessionCount=\(singleDeleteInfo!.sessionCount)")")
             }
-            .presentationDetents([.medium])
+            .presentationDetentsCompat([.medium])
         }
         .sheet(item: $sessionToEdit) { session in
             SessionEditSheet(session: session) { newTitle, newCategory in
@@ -1888,7 +1888,7 @@ struct ContentView: View {
                 }
                 sessionToEdit = nil
             }
-            .presentationDetents([.medium])
+            .presentationDetentsCompat([.medium])
         }
         .sheet(isPresented: $showDeleteConfirm, onDismiss: {
             if deleteInfo == nil {
@@ -1905,7 +1905,7 @@ struct ContentView: View {
                 deleteSelectedSessions()
                 showDeleteConfirm = false
             }
-            .presentationDetents([.medium])
+            .presentationDetentsCompat([.medium])
         }
         .sheet(isPresented: $showExportPreview) {
             ExportPreviewSheet(fileURL: exportFileURL, previewURL: exportPreviewURL, summary: exportSummary)
@@ -1940,7 +1940,7 @@ struct ContentView: View {
                 if req.fromMultiSelect { folderMoveApplied = true }
                 folderPickerRequest = nil
             }
-            .presentationDetents([.medium, .large])
+            .presentationDetentsCompat([.medium, .large])
         }
         .modifier(FolderAlertsModifier(
             folderToRename: $folderToRename,
@@ -2473,7 +2473,7 @@ struct ContentView: View {
         // session-switch / tap lag is a separate issue (ChatSession Array `==`
         // in SwiftUI's transaction flush; an A/B test confirmed the font
         // injection is not its cause), so per-column injection is safe here.
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        IOS15NavigationSplitView(columnVisibility: $columnVisibility) {
             sessionList(useNavigationLinks: false)
                 .appFontScale()
         } detail: {
@@ -2485,9 +2485,10 @@ struct ContentView: View {
     // MARK: - Stack Layout (iPhone / narrow window)
 
     private var stackLayout: some View {
-        NavigationStack(path: $navigationPath) {
+        IOS15NavigationStack(path: $navigationPath, root: {
             sessionList(useNavigationLinks: true)
-                .navigationDestination(for: String.self) { id in
+        }, destination: { id in
+            AnyView(Group {
                     // `.id(id)` mirrors detailView (iPad): navigationDestination
                     // views are identified by stack depth, not path value, so
                     // replacing the top element in place (menu "New Chat" swaps
@@ -2528,9 +2529,8 @@ struct ContentView: View {
                             }
                             .onDisappear { shareLog.info("🔄SESSION stackNav DISAPPEAR id=\(id)") }
                     }
-                }
-        }
-    }
+            })
+        })
 
     // MARK: - Detail View
 
@@ -3260,7 +3260,7 @@ struct ContentView: View {
                 }
             }
             .background(
-                NavigationLink(value: session.id) { EmptyView() }
+                IOS15NavigationLink(value: session.id) { EmptyView() }
                     .opacity(0)
             )
             .listRowInsets(EdgeInsets())
@@ -3304,7 +3304,7 @@ struct ContentView: View {
     }
 
     /// The list itself. Split from `stackList` so the outer chrome chain
-    /// (`safeAreaInset` → `ignoresSafeArea` → `navigationBarTitleDisplayMode` →
+    /// (`safeAreaInsetCompat` → `ignoresSafeArea` → `navigationBarTitleDisplayMode` →
     /// `toolbar`) is instantiated separately from the list's own generic tree
     /// rather than wrapping it.
     private func stackListBody(scrollProxy: ScrollViewProxy) -> AnyView {
@@ -3374,7 +3374,7 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, filteredSessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { fabRow } }
+        .safeAreaInsetCompat(edge: .bottom) { if isSelecting { selectionToolbar } else { fabRow } }
         // [T-home-fab-keyboard-inset] Mirror of the voice panel's structural
         // immunity (604a9947 / T-voice-bg-fg-gap): with the inline search bar
         // closed, nothing down here accepts text — any keyboard inset reaching
@@ -3563,7 +3563,7 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, displaySessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { fabRow } }
+        .safeAreaInsetCompat(edge: .bottom) { if isSelecting { selectionToolbar } else { fabRow } }
         // [T-home-fab-keyboard-inset] Same structural immunity as the compact
         // list above — see that call site for the full rationale. On iPad the
         // sidebar column never hosts a keyboard unless the inline search bar
@@ -3898,7 +3898,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
             }
         }
-        ToolbarItem(placement: .topBarLeading) {
+        ToolbarItem(placement: .navigationBarLeading) {
             if isSelecting {
                 Button("Cancel") {
                     isSelecting = false
@@ -3912,7 +3912,7 @@ struct ContentView: View {
                 }
             }
         }
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: .navigationBarTrailing) {
             if isSelecting {
                 Button(selectedIds.count == sessions.count ? "Deselect All" : "Select All") {
                     if selectedIds.count == sessions.count {
@@ -3930,7 +3930,7 @@ struct ContentView: View {
                 }
             }
         }
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: .navigationBarTrailing) {
             if !isSelecting {
                 Menu {
                     Button {
@@ -4066,7 +4066,7 @@ struct ContentView: View {
         if isWideLayout {
             openSession(newId)
         } else {
-            commitNavigationPath(NavigationPath([newId]))
+            commitIOS15NavigationPath(IOS15NavigationPath([newId]))
             currentStackSessionId = newId
         }
     }
@@ -4100,7 +4100,7 @@ struct ContentView: View {
             if isWideLayout {
                 selectedSessionId = nil
             } else {
-                navigationPath = NavigationPath()
+                navigationPath = IOS15NavigationPath()
                 currentStackSessionId = nil
             }
         }
@@ -4119,7 +4119,7 @@ struct ContentView: View {
         if isWideLayout {
             openSession(newId)
         } else {
-            commitNavigationPath(NavigationPath([newId]))
+            commitIOS15NavigationPath(IOS15NavigationPath([newId]))
             currentStackSessionId = newId
         }
         QuickActionWorkflow.shared.attachTargetSession(newId)
@@ -4152,7 +4152,7 @@ struct ContentView: View {
     /// `previousStackSessionId` stays in lockstep because it is maintained by
     /// the `onChange(of: navigationPath)` observer, which simply runs later —
     /// when the deferred path is actually committed.
-    private func commitNavigationPath(_ newPath: NavigationPath) {
+    private func commitIOS15NavigationPath(_ newPath: IOS15NavigationPath) {
         // [T-share-first-tap-no-response] `.inactive` is NOT the state this
         // gate was built for. The watchdog kills it prevents come from a push
         // running AIChatView's whole first layout while the app is genuinely
@@ -4193,7 +4193,7 @@ struct ContentView: View {
         // run while still backgrounded, and committing there would reinstate
         // exactly the synchronous background push this gate exists to prevent.
         // Keep it pending — a later flush will take it.
-        // [T-share-first-tap-no-response] Mirrors commitNavigationPath: only a
+        // [T-share-first-tap-no-response] Mirrors commitIOS15NavigationPath: only a
         // genuinely BACKGROUNDED app must hold the push back. Blocking on
         // `.inactive` here too would re-deny the flush during the very
         // foreground transition that is supposed to release it.
@@ -4221,7 +4221,7 @@ struct ContentView: View {
             return
         }
         searchFocused = false
-        commitNavigationPath(NavigationPath([id]))
+        commitIOS15NavigationPath(IOS15NavigationPath([id]))
         currentStackSessionId = id
     }
 
@@ -4247,7 +4247,7 @@ struct ContentView: View {
             // on the still-stale live `navigationPath` would drop it.
             var next = pendingBackgroundNavigation?.path ?? navigationPath
             next.append(id)
-            commitNavigationPath(next)
+            commitIOS15NavigationPath(next)
             currentStackSessionId = id
         }
     }
@@ -4410,7 +4410,7 @@ struct ContentView: View {
             Section {
                 ForEach(entry.ids, id: \.self) { sessionId in
                     if let session = byId["\(entry.deviceId):\(sessionId)"] {
-                        NavigationLink(value: "remote:\(entry.deviceId):\(session.id)") {
+                        IOS15NavigationLink(value: "remote:\(entry.deviceId):\(session.id)") {
                             RemoteSessionRow(session: session)
                         }
                         .listRowInsets(EdgeInsets())
@@ -4603,12 +4603,12 @@ struct ContentView: View {
         .frame(maxHeight: .infinity)
         .padding(.horizontal, 32)
         .sheet(isPresented: $showAddProvider) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 AddProviderView()
             }
         }
         .sheet(isPresented: $showSelectModels) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 OnboardingModelSelectionView()
             }
         }
@@ -4617,7 +4617,7 @@ struct ContentView: View {
             // the Restore tab. Not auto-dismissed on success — the result
             // report is worth reading; the steps above refresh on their own
             // (restore reloads ProviderConfigStore and the session list).
-            NavigationStack {
+            IOS15NavigationContainer {
                 BackupAndRestoreView(initialTab: .restore)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
@@ -4948,7 +4948,7 @@ struct ContentView: View {
     /// shadow, unchanged.
     ///
     /// Unlike `FolderSurface`, live glass is safe here: the FAB floats in a
-    /// `safeAreaInset` over a stable backdrop and never scrolls past
+    /// `safeAreaInsetCompat` over a stable backdrop and never scrolls past
     /// heterogeneous content, so the flicker that forced that type onto a
     /// sampled constant does not apply.
     @ViewBuilder
@@ -5126,7 +5126,7 @@ struct ContentView: View {
                         .modifier(SearchBarSurface())
                         // [T-ios-search-bar-glass-hit-hole] `glassEffect(in:)`
                         // RENDERS a capsule but contributes no hit region of
-                        // its own, and this row sits in a `safeAreaInset` over
+                        // its own, and this row sits in a `safeAreaInsetCompat` over
                         // the session List — an inset does not swallow touches
                         // where it has nothing hit-testable. So every point of
                         // the bar not covered by a real control (icon,
@@ -6295,7 +6295,7 @@ private struct DeleteConfirmSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             VStack(spacing: 0) {
                 if isLoading || info == nil {
                     Spacer()
@@ -6419,7 +6419,7 @@ private struct ExportPreviewSheet: View {
     private let previewLimit = 10000
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             VStack(spacing: 0) {
                 // Preview — summary for multi-select, full content for single.
                 if let summary {
@@ -6480,7 +6480,7 @@ private struct ExportPreviewSheet: View {
             .navigationTitle(AppLocalized("Export Preview"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(AppLocalized("Done")) { dismiss() }
                 }
             }
@@ -7478,7 +7478,7 @@ struct SessionEditSheet: View {
     ]
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             List {
                 Section("Title") {
                     TextField("Session title", text: $editTitle)
@@ -8080,6 +8080,7 @@ private enum SettingsDestination: Hashable {
     case modelGroupDetail(groupId: String)
     case usage
     case skills
+    case helper
     // [T-ios-assistant-header-open-soul]
     case soul
     // [T-tools-master-switch]
@@ -8093,27 +8094,61 @@ private enum SettingsDestination: Hashable {
     case background
     case about
     case permissions
+    case faceIDProtection
     case environments
+    case cloudSync
+    case backupRestore
     // [T-mcp-oauth-deeplink]
     case mcpIntegrations
     case mcpServerDetail(serverId: String)
 }
+
+private extension SettingsDestination {
+    var ios15NavigationID: String {
+        switch self {
+        case .providers: return "providers"
+        case .modelGroups: return "modelGroups"
+        case .usage: return "usage"
+        case .skills: return "skills"
+        case .helper: return "helper"
+        case .soul: return "soul"
+        case .tools: return "tools"
+        case .memory: return "memory"
+        case .storage: return "storage"
+        case .mountedFolders: return "mountedFolders"
+        case .sharedFolders: return "sharedFolders"
+        case .logs: return "logs"
+        case .appearance: return "appearance"
+        case .background: return "background"
+        case .about: return "about"
+        case .permissions: return "permissions"
+        case .faceIDProtection: return "faceIDProtection"
+        case .environments: return "environments"
+        case .cloudSync: return "cloudSync"
+        case .backupRestore: return "backupRestore"
+        case .mcpIntegrations: return "mcpIntegrations"
+        case .providerDetail(let id): return "providerDetail:\(id)"
+        case .modelGroupDetail(let id): return "modelGroupDetail:\(id)"
+        case .mcpServerDetail(let id): return "mcpServerDetail:\(id)"
+        }
+    }
+}
+
+extension SettingsDestination: IOS15NavigationValue {}
 
 private struct SettingsSheet: View {
     @Binding var showTerminal: Bool
     @AppStorage("appearanceMode") private var appearanceMode: Int = 0
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var deepLink = DeepLinkCoordinator.shared
-    @State private var navPath = NavigationPath()
+    @State private var navPath = IOS15NavigationPath()
     @State private var showFeedbackDialog = false
 
     var body: some View {
-        NavigationStack(path: $navPath) {
+        IOS15NavigationStack(path: Binding(get: { navPath }, set: { navPath = $0 }), root: {
             List {
                 Section {
-                    NavigationLink {
-                        ProviderInstancesView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.providers) {
                         if #available(iOS 26, *) {
                             Label("Manage Providers", systemImage: "key.circle.fill")
                         } else {
@@ -8121,15 +8156,11 @@ private struct SettingsSheet: View {
                         }
                     }
 
-                    NavigationLink {
-                        ModelGroupsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.modelGroups) {
                         Label("Model Groups", systemImage: "gearshape.circle.fill")
                     }
 
-                    NavigationLink {
-                        UsageStatsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.usage) {
                         Label("Token Usage", systemImage: "chart.line.uptrend.xyaxis.circle.fill")
                     }
                 } header: {
@@ -8139,9 +8170,7 @@ private struct SettingsSheet: View {
                 }
 
                 Section("Appearance") {
-                    NavigationLink {
-                        AppearanceSettingsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.appearance) {
                         Label {
                             Text("Appearance")
                         } icon: {
@@ -8156,9 +8185,7 @@ private struct SettingsSheet: View {
 
                 Section("Agent Runtime") {
                     // [T-tools-granular-switches] First row: per-tool switches.
-                    NavigationLink {
-                        ToolsSettingsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.tools) {
                         Label {
                             Text(AppLocalized("Agent Tools"))
                         } icon: {
@@ -8172,9 +8199,7 @@ private struct SettingsSheet: View {
                     // [T-sub-agents-v1] Directly under Agent Tools: the two pages
                     // are the tool surface (which tools exist) and the delegation
                     // surface (who runs a delegated task), so they read as a pair.
-                    NavigationLink {
-                        HelperSettingsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.helper) {
                         Label {
                             Text(AppLocalized("Sub Agents"))
                         } icon: {
@@ -8191,9 +8216,7 @@ private struct SettingsSheet: View {
                                 .background(HelperAccent.color, in: Circle())
                         }
                     }
-                    NavigationLink {
-                        SkillsManagementView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.skills) {
                         Label {
                             Text("Skills")
                         } icon: {
@@ -8204,9 +8227,7 @@ private struct SettingsSheet: View {
                                 .background(.blue, in: Circle())
                         }
                     }
-                    NavigationLink {
-                        SoulSettingsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.soul) {
                         Label {
                             Text("Soul")
                         } icon: {
@@ -8217,9 +8238,7 @@ private struct SettingsSheet: View {
                                 .background(.pink, in: Circle())
                         }
                     }
-                    NavigationLink {
-                        MemoryManagementView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.memory) {
                         Label {
                             Text("Memory")
                         } icon: {
@@ -8230,9 +8249,7 @@ private struct SettingsSheet: View {
                                 .background(.purple, in: Circle())
                         }
                     }
-                    NavigationLink {
-                        MCPIntegrationsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.mcpIntegrations) {
                         Label {
                             Text("MCP Integrations")
                         } icon: {
@@ -8243,9 +8260,7 @@ private struct SettingsSheet: View {
                                 .background(.teal, in: Circle())
                         }
                     }
-                    NavigationLink {
-                        EnvironmentVariablesView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.environments) {
                         Label {
                             Text("Environment Variables")
                         } icon: {
@@ -8259,9 +8274,7 @@ private struct SettingsSheet: View {
                 }
 
                 Section("Storage") {
-                    NavigationLink {
-                        StorageManagementView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.storage) {
                         Label {
                             Text("Storage")
                         } icon: {
@@ -8272,9 +8285,7 @@ private struct SettingsSheet: View {
                                 .background(.blue, in: Circle())
                         }
                     }
-                    NavigationLink {
-                        SharedFoldersSettingsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.sharedFolders) {
                         Label {
                             Text("Shared Folders")
                         } icon: {
@@ -8285,9 +8296,7 @@ private struct SettingsSheet: View {
                                 .background(.green, in: Circle())
                         }
                     }
-                    NavigationLink {
-                        MountedFoldersSettingsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.mountedFolders) {
                         Label {
                             Text("Mount External Folders")
                         } icon: {
@@ -8299,11 +8308,7 @@ private struct SettingsSheet: View {
                         }
                     }
                     if #available(iOS 17.0, *) {
-                        NavigationLink {
-                            // v2 is the default sync engine; legacy v1
-                            // settings page is unreachable from here.
-                            CloudSyncSettingsV2View()
-                        } label: {
+                        IOS15NavigationLink(value: SettingsDestination.cloudSync) {
                             Label {
                                 Text("iCloud Sync")
                             } icon: {
@@ -8315,9 +8320,7 @@ private struct SettingsSheet: View {
                             }
                         }
                     }
-                    NavigationLink {
-                        BackupAndRestoreView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.backupRestore) {
                         Label {
                             // Not just "Backup": this screen is both halves of
                             // the feature, and on a new device restore is the
@@ -8336,9 +8339,7 @@ private struct SettingsSheet: View {
                 }
 
                 Section("Permissions") {
-                    NavigationLink {
-                        OffloadPermissionSettingsView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.permissions) {
                         Label {
                             Text("Permissions")
                         } icon: {
@@ -8350,9 +8351,7 @@ private struct SettingsSheet: View {
                         }
                     }
                     if BiometricAuth.isAvailable {
-                        NavigationLink {
-                            FaceIDProtectionSettingsView()
-                        } label: {
+                        IOS15NavigationLink(value: SettingsDestination.faceIDProtection) {
                             Label {
                                 Text("\(BiometricAuth.biometryDisplayName) Protection")
                             } icon: {
@@ -8369,9 +8368,7 @@ private struct SettingsSheet: View {
                 }
 
                 Section("Logs") {
-                    NavigationLink {
-                        LogManagementView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.logs) {
                         Label {
                             Text("Logs")
                         } icon: {
@@ -8385,9 +8382,7 @@ private struct SettingsSheet: View {
                 }
 
                 Section("About") {
-                    NavigationLink {
-                        AboutView()
-                    } label: {
+                    IOS15NavigationLink(value: SettingsDestination.about) {
                         Label {
                             Text("About Minis")
                         } icon: {
@@ -8441,60 +8436,8 @@ private struct SettingsSheet: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
-                }
-            }
-            .navigationDestination(for: SettingsDestination.self) { dest in
-                switch dest {
-                case .providers:
-                    ProviderInstancesView()
-                case .providerDetail(let id):
-                    ProviderInstanceDetailView(instanceId: id)
-                case .modelGroups:
-                    ModelGroupsView()
-                case .modelGroupDetail(let id):
-                    ModelGroupDetailView(groupId: id)
-                case .usage:
-                    UsageStatsView()
-                case .skills:
-                    SkillsManagementView()
-                case .soul:
-                    SoulSettingsView()
-                case .tools:
-                    ToolsSettingsView()
-                case .memory:
-                    MemoryManagementView()
-                case .storage:
-                    StorageManagementView()
-                case .mountedFolders:
-                    MountedFoldersSettingsView()
-                case .sharedFolders:
-                    SharedFoldersSettingsView()
-                case .logs:
-                    // Pull a one-shot tab hint from the deep link router
-                    // (e.g. `?tab=config-audit`). LogManagementView clears
-                    // its local state independently; the published value
-                    // here is consumed once and reset to nil.
-                    LogManagementView(initialTab: deepLink.pendingLogsTab ?? "logs")
-                        .onAppear { deepLink.pendingLogsTab = nil }
-                case .appearance:
-                    AppearanceSettingsView()
-                case .background:
-                    EnhancedBackgroundSettingsView()
-                case .about:
-                    AboutView()
-                case .environments:
-                    EnvironmentVariablesView()
-                case .permissions:
-                    OffloadPermissionSettingsView()
-                // [T-mcp-oauth-deeplink] Detail = the list view told to open
-                // the server's edit sheet on appear; a deleted/unknown server
-                // just lands on the list (no crash, sensible fallback).
-                case .mcpIntegrations:
-                    MCPIntegrationsView()
-                case .mcpServerDetail(let serverId):
-                    MCPIntegrationsView(initialEditServerId: serverId)
                 }
             }
             .onAppear {
@@ -8528,9 +8471,45 @@ private struct SettingsSheet: View {
             .onChange(of: deepLink.pendingSettingsTarget) { _ in
                 applyPendingDeepLink()
             }
-        }
+        }, destination: { id in
+            AnyView(settingsDestinationView(for: id))
+        })
         .preferredColorScheme(appearanceMode == 1 ? .light : appearanceMode == 2 ? .dark : nil)
         .appFontScale()
+    }
+
+    @ViewBuilder
+    private func settingsDestinationView(for id: String) -> some View {
+        switch id {
+        case "providers": ProviderInstancesView()
+        case "modelGroups": ModelGroupsView()
+        case "usage": UsageStatsView()
+        case "skills": SkillsManagementView()
+        case "helper": HelperSettingsView()
+        case "soul": SoulSettingsView()
+        case "tools": ToolsSettingsView()
+        case "memory": MemoryManagementView()
+        case "storage": StorageManagementView()
+        case "mountedFolders": MountedFoldersSettingsView()
+        case "sharedFolders": SharedFoldersSettingsView()
+        case "logs": LogManagementView(initialTab: deepLink.pendingLogsTab ?? "logs")
+        case "appearance": AppearanceSettingsView()
+        case "background": EnhancedBackgroundSettingsView()
+        case "about": AboutView()
+        case "permissions": OffloadPermissionSettingsView()
+        case "faceIDProtection": FaceIDProtectionSettingsView()
+        case "environments": EnvironmentVariablesView()
+        case "cloudSync": CloudSyncSettingsV2View()
+        case "backupRestore": BackupAndRestoreView()
+        case "mcpIntegrations": MCPIntegrationsView()
+        case let id where id.hasPrefix("providerDetail:"):
+            ProviderInstanceDetailView(instanceId: String(id.dropFirst("providerDetail:".count)))
+        case let id where id.hasPrefix("modelGroupDetail:"):
+            ModelGroupDetailView(groupId: String(id.dropFirst("modelGroupDetail:".count)))
+        case let id where id.hasPrefix("mcpServerDetail:"):
+            MCPIntegrationsView(initialEditServerId: String(id.dropFirst("mcpServerDetail:".count)))
+        default: EmptyView()
+        }
     }
 
     /// Translate `DeepLinkCoordinator.pendingSettingsTarget` into a
@@ -8546,7 +8525,7 @@ private struct SettingsSheet: View {
         // Reset path so deep links are predictable: a deep link always
         // lands on the requested destination as the only stack entry,
         // not on top of whatever the user was browsing earlier.
-        navPath = NavigationPath()
+        navPath = IOS15NavigationPath()
         switch target {
         case .home:
             break // already at Settings root

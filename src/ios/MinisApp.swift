@@ -283,7 +283,7 @@ struct MinisApp: App {
                     get: { sessionLockStore.appIsLocked ? nil : openRouter.pendingPackage },
                     set: { openRouter.pendingPackage = $0 }
                 )) { pending in
-                    NavigationStack {
+                    IOS15NavigationContainer {
                         // Opens on the RESTORE tab with the package already
                         // loaded. Someone who just tapped a .minisbak is mid
                         // device-migration — landing them on the backup form
@@ -425,8 +425,13 @@ struct MinisApp: App {
                     BackgroundKeepAliveManager.shared.setup()
                     // Monitor network changes to keep iSH DNS up to date
                     NetworkMonitor.shared.start()
-                    // Register FileProvider domain for shared files
-                    Self.registerFileProviderDomain()
+                    // Replicated FileProvider domains are iOS 16+. On iOS 15
+                    // the App Group folders remain usable directly.
+                    if #available(iOS 16.0, *) {
+                        Self.registerFileProviderDomain()
+                    } else {
+                        lifecycleLog.info("[FileProvider] unavailable on iOS 15; using App Group folders directly")
+                    }
                     // Migrate legacy shared dir to App Group container
                     Self.migrateSharedDirToAppGroup()
                     // Trace the resolved AppGroup paths so we can confirm the
@@ -610,7 +615,9 @@ struct MinisApp: App {
                     SkillFilesystemNotifier.shared.drainIfDirtyAsync(reason: "scenePhase active")
                 }
 
-                Self.signalFileProvider()
+                if #available(iOS 16.0, *) {
+                    Self.signalFileProvider()
+                }
                 MountedFoldersManager.shared.refreshAllWritability()
 
                 // Credential-presence diagnostic (Keychain reads off-main)
@@ -733,6 +740,7 @@ struct MinisApp: App {
 
     // MARK: - FileProvider
 
+    @available(iOS 16.0, *)
     private static let fileProviderDomain = NSFileProviderDomain(
         identifier: NSFileProviderDomainIdentifier("com.openminis.app.files"),
         displayName: "Minis"
@@ -796,6 +804,7 @@ struct MinisApp: App {
         lifecycleLog.info("[FPSyncTrace] app-updated old=\(previous ?? "none") new=\(current) mac=\(onMac)")
     }
 
+    @available(iOS 16.0, *)
     private static func registerFileProviderDomain() {
         logAppUpdateMarkerForFPTrace()
 
@@ -1004,6 +1013,7 @@ struct MinisApp: App {
         }
     }
 
+    @available(iOS 16.0, *)
     private static func signalFileProvider() {
         NSFileProviderManager(for: fileProviderDomain)?.signalEnumerator(for: .rootContainer) { error in
             if let error {

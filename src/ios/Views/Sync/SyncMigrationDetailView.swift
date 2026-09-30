@@ -479,7 +479,7 @@ struct SyncMigrationDetailView: View {
                 showPauseDialog = false
             } pauseLabel: { pauseLabel(hours: $0) }
         }
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaInsetCompat(edge: .bottom) {
             // Bottom breathing room so the trailing section footer doesn't
             // butt up against the sheet edge / show-through content.
             Color.clear.frame(height: 24)
@@ -1074,7 +1074,7 @@ private struct PauseSyncSheet: View {
     private let hoursOptions = [1, 3, 6, 12, 24]
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             List {
                 Section {
                     ForEach(hoursOptions, id: \.self) { hours in
@@ -1105,7 +1105,7 @@ private struct PauseSyncSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
+        .presentationDetentsCompat([.medium])
+        .presentationDragIndicatorCompat(.visible)
     }
 }

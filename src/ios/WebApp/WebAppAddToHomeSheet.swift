@@ -33,7 +33,7 @@ struct WebAppAddToHomeSheet: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        NavigationStack {
+        IOS15NavigationContainer {
             Form {
                 if unsupportedScope {
                     unsupportedSection

@@ -204,7 +204,7 @@ struct RootfsResetToolbarItem: ToolbarContent {
  */
 
 #Preview("Compact") {
-    NavigationStack {
+    IOS15NavigationContainer {
         VStack {
             RootfsResetButton(style: .compact)
         }
@@ -213,7 +213,7 @@ struct RootfsResetToolbarItem: ToolbarContent {
 }
 
 #Preview("Normal") {
-    NavigationStack {
+    IOS15NavigationContainer {
         List {
             Section("Actions") {
                 RootfsResetButton(style: .normal)
@@ -224,7 +224,7 @@ struct RootfsResetToolbarItem: ToolbarContent {
 }
 
 #Preview("Prominent") {
-    NavigationStack {
+    IOS15NavigationContainer {
         VStack(spacing: 20) {
             Text("Rootfs Management")
                 .font(.title)

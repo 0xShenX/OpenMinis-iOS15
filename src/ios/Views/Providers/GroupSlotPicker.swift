@@ -83,7 +83,7 @@ struct GroupSlotPicker: View {
             }
         }
         .sheet(isPresented: $showCreate) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 UnifiedModelPicker(config: createGroupConfig())
             }
         }

@@ -70,87 +70,32 @@ struct SwipeToSendHint: View {
 
 // MARK: - Flow Layout
 
-/// A custom Layout that arranges subviews in a wrapping horizontal flow.
-private struct FlowLayout: Layout {
+/// iOS 15 wrapping layout. SwiftUI's `Layout` protocol was introduced in iOS 16;
+/// fixed-size attachment chips can use an adaptive grid with the same wrapping
+/// behavior without requiring newer SwiftUI ABI symbols.
+private struct FlowLayout<Content: View>: View {
     var hSpacing: CGFloat = 8
     var vSpacing: CGFloat = 8
     var alignment: HorizontalAlignment = .leading
+    let content: Content
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = arrange(proposal: proposal, subviews: subviews)
-        // Use the full proposed width so the layout fills its container.
-        return CGSize(width: proposal.width ?? result.size.width, height: result.size.height)
+    init(hSpacing: CGFloat = 8, vSpacing: CGFloat = 8,
+         alignment: HorizontalAlignment = .leading,
+         @ViewBuilder content: () -> Content) {
+        self.hSpacing = hSpacing
+        self.vSpacing = vSpacing
+        self.alignment = alignment
+        self.content = content()
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = arrange(proposal: proposal, subviews: subviews)
-        let containerWidth = bounds.width
-        for (index, position) in result.positions.enumerated() {
-            let xOffset: CGFloat
-            if alignment == .trailing {
-                let rowWidth = result.rowWidths[result.rowIndices[index]]
-                xOffset = containerWidth - rowWidth + position.x
-            } else {
-                xOffset = position.x
-            }
-            subviews[index].place(
-                at: CGPoint(x: bounds.minX + xOffset, y: bounds.minY + position.y),
-                proposal: ProposedViewSize(result.sizes[index])
-            )
+    var body: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 64), spacing: hSpacing)],
+            alignment: alignment,
+            spacing: vSpacing
+        ) {
+            content
         }
-    }
-
-    private struct ArrangeResult {
-        var positions: [CGPoint]
-        var sizes: [CGSize]
-        var size: CGSize
-        var rowWidths: [CGFloat]
-        var rowIndices: [Int]
-    }
-
-    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> ArrangeResult {
-        let maxWidth = proposal.width ?? .infinity
-        var positions: [CGPoint] = []
-        var sizes: [CGSize] = []
-        var rowIndices: [Int] = []
-        var rowWidths: [CGFloat] = []
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var totalWidth: CGFloat = 0
-        var currentRowStart = 0
-        var currentRow = 0
-
-        for (i, subview) in subviews.enumerated() {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > maxWidth, x > 0 {
-                // Finish current row
-                rowWidths.append(x - hSpacing)
-                currentRow += 1
-                x = 0
-                y += rowHeight + vSpacing
-                rowHeight = 0
-                currentRowStart = i
-            }
-            positions.append(CGPoint(x: x, y: y))
-            sizes.append(size)
-            rowIndices.append(currentRow)
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + hSpacing
-            totalWidth = max(totalWidth, x - hSpacing)
-        }
-        // Last row
-        if !subviews.isEmpty {
-            rowWidths.append(x - hSpacing)
-        }
-
-        return ArrangeResult(
-            positions: positions,
-            sizes: sizes,
-            size: CGSize(width: totalWidth, height: y + rowHeight),
-            rowWidths: rowWidths,
-            rowIndices: rowIndices
-        )
     }
 }
 
@@ -277,12 +222,12 @@ private struct AttachmentChip: View {
         .onAppear { loadThumbnailIfNeeded() }
         .onTapGesture { showPreview = true }
         .sheet(isPresented: $showPreview) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 AttachmentPreviewView(url: attachment.cacheURL)
                     .navigationTitle(attachment.fileName)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
+                        ToolbarItem(placement: .navigationBarTrailing) {
                             Button("Done") { showPreview = false }
                         }
                     }
@@ -549,7 +494,7 @@ struct PastedTextChipRow: View {
             .padding(.trailing, 4)
         }
         .sheet(item: $previewEntry) { entry in
-            NavigationStack {
+            IOS15NavigationContainer {
                 ScrollView {
                     // Read-only by construction: selectable text (copyable),
                     // deliberately NOT a TextEditor.
@@ -568,7 +513,7 @@ struct PastedTextChipRow: View {
                 .navigationTitle("Pasted#\(entry.id) · " + String(format: AppLocalized("%d chars"), entry.charCount))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .navigationBarTrailing) {
                         Button(AppLocalized("Done")) { previewEntry = nil }
                     }
                 }
@@ -602,20 +547,95 @@ private struct AttachmentPreviewView: UIViewControllerRepresentable {
     }
 }
 
-// MARK: - Video File Transferable (for PhotosPicker video export)
+// MARK: - iOS 15 Photos picker bridge
 
-struct VideoFileTransferable: Transferable {
-    let url: URL
+struct IOS15PickedMedia {
+    let data: Data?
+    let fileURL: URL?
+    let contentType: UTType
+    let itemIdentifier: String?
+}
 
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(contentType: .movie) { video in
-            SentTransferredFile(video.url)
-        } importing: { received in
-            // Copy to a temp location so the file outlives the picker callback
-            let tmp = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString.prefix(8) + "_" + received.file.lastPathComponent)
-            try FileManager.default.copyItem(at: received.file, to: tmp)
-            return Self(url: tmp)
+/// PHPicker keeps multi-image/video selection available on iOS 15 without
+/// exposing SwiftUI's iOS 16 picker types to the deployment target.
+struct IOS15MediaPicker: UIViewControllerRepresentable {
+    let selectionLimit: Int
+    var onSelection: (([PHPickerResult]) -> Void)? = nil
+    var onComplete: (([IOS15PickedMedia]) -> Void)? = nil
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var configuration = PHPickerConfiguration(photoLibrary: .shared())
+        configuration.filter = .any(of: [.images, .videos])
+        configuration.selectionLimit = selectionLimit
+        configuration.preferredAssetRepresentationMode = .current
+        let controller = PHPickerViewController(configuration: configuration)
+        controller.delegate = context.coordinator
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onSelection: onSelection, onComplete: onComplete) }
+
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let onSelection: (([PHPickerResult]) -> Void)?
+        let onComplete: (([IOS15PickedMedia]) -> Void)?
+        private var progress: [Progress] = []
+        init(onSelection: (([PHPickerResult]) -> Void)?, onComplete: (([IOS15PickedMedia]) -> Void)?) {
+            self.onSelection = onSelection
+            self.onComplete = onComplete
+        }
+        deinit { progress.forEach { $0.cancel() } }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            picker.dismiss(animated: true)
+            // Empty results mean Cancel, not an unreadable selected image.
+            guard !results.isEmpty else { return }
+            if onSelection != nil {
+                onSelection?(results)
+                return
+            }
+            var picked = Array<IOS15PickedMedia?>(repeating: nil, count: results.count)
+            for (index, result) in results.enumerated() {
+                progress.append(IOS15MediaPicker.load(result) { [self] item in
+                    picked[index] = item
+                    if picked.allSatisfy({ $0 != nil }) {
+                        onComplete?(picked.compactMap { $0 })
+                        progress.removeAll()
+                    }
+                })
+            }
+        }
+    }
+
+    static func contentType(for result: PHPickerResult) -> UTType {
+        result.itemProvider.registeredTypeIdentifiers.compactMap(UTType.init(identifier:))
+            .first(where: { $0.conforms(to: .movie) || $0.conforms(to: .image) }) ?? .data
+    }
+
+    /// Delivers one outcome per selected item, including failures. The owner
+    /// retains/cancels the returned Progress and rejects obsolete callbacks.
+    static func load(_ result: PHPickerResult, completion: @escaping (IOS15PickedMedia) -> Void) -> Progress {
+        let type = contentType(for: result)
+        let identifier = result.assetIdentifier
+        if type.conforms(to: .movie) {
+            return result.itemProvider.loadFileRepresentation(forTypeIdentifier: type.identifier) { url, _ in
+                var copiedURL: URL?
+                if let url {
+                    let destination = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension(url.pathExtension.isEmpty ? (type.preferredFilenameExtension ?? "mov") : url.pathExtension)
+                    do {
+                        try FileManager.default.copyItem(at: url, to: destination)
+                        copiedURL = destination
+                    } catch { copiedURL = nil }
+                }
+                let item = IOS15PickedMedia(data: nil, fileURL: copiedURL, contentType: type, itemIdentifier: identifier)
+                DispatchQueue.main.async { completion(item) }
+            }
+        }
+        return result.itemProvider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
+            let item = IOS15PickedMedia(data: data, fileURL: nil, contentType: type, itemIdentifier: identifier)
+            DispatchQueue.main.async { completion(item) }
         }
     }
 }

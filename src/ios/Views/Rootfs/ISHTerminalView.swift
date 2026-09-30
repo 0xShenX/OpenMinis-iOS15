@@ -77,7 +77,7 @@ struct ISHTerminalView: View {
         .ignoresSafeArea(.keyboard)
         // Accessory bar is pinned above the keyboard via safeAreaInset.
         // It moves with the keyboard but does NOT affect the terminal's frame.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .safeAreaInsetCompat(edge: .bottom, spacing: 0) {
             TerminalKeyboardAccessory(
                 onInput: { data in viewModel.sendInput(data) },
                 ctrlActive: $ctrlActive,
@@ -148,12 +148,12 @@ struct ISHTerminalView: View {
             }
         }
         .sheet(isPresented: $showFileBrowser) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 FileBrowserView()
             }
         }
         .sheet(isPresented: $showRootfsManagement) {
-            NavigationStack {
+            IOS15NavigationContainer {
                 RootfsManagementView()
             }
         }
@@ -500,7 +500,7 @@ struct QuickCommandButton: View {
 }
 
 #Preview {
-    NavigationStack {
+    IOS15NavigationContainer {
         ISHTerminalView()
     }
 }
