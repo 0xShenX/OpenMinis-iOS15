@@ -2531,6 +2531,7 @@ struct ContentView: View {
                     }
             })
         })
+    }
 
     // MARK: - Detail View
 
