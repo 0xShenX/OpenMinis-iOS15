@@ -8304,11 +8304,16 @@ struct SelectableMarkdownView: UIViewRepresentable {
         // becomes a measurable chunk of every updateUIView pass (and
         // updateUIView runs on each SwiftUI body re-evaluation, so it
         // multiplies during streaming and self-sizing measurement loops).
-        let imageMatches = markdown.ranges(of: /!\[([^\]]*)\]\(([^)]+)\)/)
+        let imagePattern = "!\\[([^\\]]*)\\]\\(([^)]+)\\)"
+        let imageRegex = try? NSRegularExpression(pattern: imagePattern)
+        let fullRange = NSRange(markdown.startIndex..<markdown.endIndex, in: markdown)
+        let imageMatches = imageRegex?.matches(in: markdown, options: [], range: fullRange) ?? []
         if !imageMatches.isEmpty {
             for match in imageMatches {
-                let matchStr = String(markdown[match])
-                imgLogger.info("[MinisImage][StreamParse] image markdown found: \(matchStr)")
+                if let range = Range(match.range, in: markdown) {
+                    let matchStr = String(markdown[range])
+                    imgLogger.info("[MinisImage][StreamParse] image markdown found: \(matchStr)")
+                }
             }
             let imageBlockCount = content.blocks.flatMap { Self.collectImageNodes(from: $0) }.count
             if imageBlockCount > 0 {
