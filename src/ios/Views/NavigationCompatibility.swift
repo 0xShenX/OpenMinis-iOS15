@@ -192,7 +192,7 @@ enum IOS15ColumnVisibility {
     case detailOnly
 }
 
-enum IOS15PresentationDetent {
+enum IOS15PresentationDetent: Hashable {
     case medium
     case large
     case height(CGFloat)
@@ -207,6 +207,11 @@ enum IOS15ScrollDismissesKeyboardMode {
     case immediately
     case interactively
     case never
+}
+
+enum IOS15ToolbarPlacement {
+    case navigationBar
+    case bottomBar
 }
 
 struct IOS15NavigationContainer<Content: View>: View {
@@ -255,7 +260,7 @@ struct IOS15NavigationSplitView<Sidebar: View, Detail: View>: View {
                     case .all: columnVisibility = .all
                     case .doubleColumn: columnVisibility = .doubleColumn
                     case .detailOnly: columnVisibility = .detailOnly
-                    @unknown default: columnVisibility = .automatic
+                    default: columnVisibility = .automatic
                     }
                 }
             )) {
@@ -291,7 +296,17 @@ extension View {
 
     @ViewBuilder
     func presentationDetentsCompat(_ detents: [IOS15PresentationDetent]) -> some View {
-        presentationDetentsCompat(Set(detents))
+        if #available(iOS 16.0, *) {
+            presentationDetents(Set(detents.map { detent in
+                switch detent {
+                case .medium: return PresentationDetent.medium
+                case .large: return PresentationDetent.large
+                case .height(let value): return PresentationDetent.height(value)
+                }
+            }))
+        } else {
+            self
+        }
     }
 
     @ViewBuilder
@@ -325,7 +340,7 @@ extension View {
     }
 
     @ViewBuilder
-    func safeAreaInsetCompat<Inset: View>(edge: Edge.Set = .bottom, spacing: CGFloat? = nil,
+    func safeAreaInsetCompat<Inset: View>(edge: VerticalEdge = .bottom, spacing: CGFloat? = nil,
                                            @ViewBuilder content: () -> Inset) -> some View {
         if #available(iOS 15.0, *) {
             safeAreaInset(edge: edge, spacing: spacing, content: content)
@@ -340,8 +355,15 @@ extension View {
     }
 
     @ViewBuilder
-    func toolbarVisibilityCompat(_ visibility: Visibility, for bar: ToolbarPlacement = .navigationBar) -> some View {
-        if #available(iOS 16.0, *) { toolbar(visibility, for: bar) } else { self }
+    func toolbarVisibilityCompat(_ visibility: Visibility, for bar: IOS15ToolbarPlacement = .navigationBar) -> some View {
+        if #available(iOS 16.0, *) {
+            switch bar {
+            case .navigationBar: toolbar(visibility, for: .navigationBar)
+            case .bottomBar: toolbar(visibility, for: .bottomBar)
+            }
+        } else {
+            self
+        }
     }
 
     @ViewBuilder
