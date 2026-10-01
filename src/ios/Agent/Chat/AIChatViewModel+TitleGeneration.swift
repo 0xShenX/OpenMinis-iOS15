@@ -803,8 +803,8 @@ extension AIChatViewModel {
         let preferred: String = !userSelected.isEmpty
             ? userSelected
             : (Bundle.main.preferredLocalizations.first
-               ?? Locale.current.languageCode?.identifier
-               ?? "en")
+                           ?? Locale.current.languageCode
+                           ?? "en")
         let locale = Locale(identifier: preferred)
         let localizedName = locale.localizedString(forIdentifier: preferred)
             ?? Locale(identifier: "en").localizedString(forIdentifier: preferred)

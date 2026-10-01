@@ -584,7 +584,7 @@ struct MinisApp: App {
                 if #available(iOS 16.0, *) {
                     try? await UNUserNotificationCenter.current().setBadgeCount(0)
                 } else {
-                    UNUserNotificationCenter.current().setBadgeNumber(0)
+                    UIApplication.shared.applicationIconBadgeNumber = 0
                 }
                 BackgroundInterruptionTracker.shared.checkOnForeground()
                 // [T-shortcuts-diag-and-pending] Scan for AppIntent runs that
