@@ -275,7 +275,7 @@ private struct LogTextView: UIViewRepresentable {
     let text: String
 
     func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView(usingTextLayoutManager: true)
+        let textView = UITextView()
         textView.isEditable = false
         textView.isSelectable = true
         textView.backgroundColor = .clear
@@ -291,16 +291,4 @@ private struct LogTextView: UIViewRepresentable {
             textView.text = text
         }
     }
-}
-
-// MARK: - Share Sheet
-
-private struct LogShareSheet: UIViewControllerRepresentable {
-    let urls: [URL]
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        // [T-share-sheet-uti] See MinisShareSheet.sanitizedShareURL.
-        let safe = urls.map { MinisShareSheet.sanitizedShareURL($0) ?? $0 }
-        return UIActivityViewController(activityItems: safe, applicationActivities: nil)
-    }
-    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }

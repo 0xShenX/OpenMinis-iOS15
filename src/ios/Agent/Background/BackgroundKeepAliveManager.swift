@@ -830,16 +830,7 @@ final class BackgroundKeepAliveManager: NSObject, ObservableObject, CLLocationMa
     }
 
     private func refreshActiveTaskBadge(sessions: Set<String>, enabled: Bool) {
-        let center = UNUserNotificationCenter.current()
-        guard enabled else {
-            center.setBadgeCount(0) { _ in }
-            return
-        }
-        center.setBadgeCount(sessions.count) { err in
-            if let err {
-                logger.error("[Badge] setBadgeCount failed: \(err.localizedDescription)")
-            }
-        }
+        UIApplication.shared.applicationIconBadgeNumber = enabled ? sessions.count : 0
     }
 
     // MARK: - Background Task Notifications
@@ -1811,7 +1802,7 @@ struct BackgroundInterruptionBanner: View {
         .padding(.top, 4)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.orange.gradient)
+                .fill(Color.orange)
                 .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
         )
         .padding(.horizontal, 12)
