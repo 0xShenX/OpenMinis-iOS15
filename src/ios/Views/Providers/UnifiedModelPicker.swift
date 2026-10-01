@@ -439,7 +439,7 @@ struct UnifiedModelPicker: View {
     /// re-filters. 120ms sits inside the 100-150ms the issue suggests: long
     /// enough that a burst of typing is one pass, short enough to feel
     /// immediate.
-    private static let searchDebounce: Duration = .milliseconds(120)
+    private static let searchDebounceMilliseconds: UInt64 = 120
 
     /// [T-picker-search-cap] Rows rendered for one search.
     ///

@@ -50,10 +50,6 @@ struct HelperSheetTarget: Identifiable, Equatable {
 /// Three detents so the height is adjustable, opening at `.medium` so the
 /// opener stays visible behind it.
 struct HelperTranscriptSheetStyle: ViewModifier {
-    @State private var detent: PresentationDetent = .medium
-
-    static let detents: Set<PresentationDetent> = [.fraction(0.35), .medium, .large]
-
     func body(content: Content) -> some View {
         let base = content
             .presentationDetentsCompat([.height(260), .medium, .large])

@@ -608,7 +608,7 @@ struct IOS15MediaPicker: UIViewControllerRepresentable {
     }
 
     static func contentType(for result: PHPickerResult) -> UTType {
-        result.itemProvider.registeredTypeIdentifiers.compactMap(UTType.init(identifier:))
+        result.itemProvider.registeredTypeIdentifiers.compactMap { UTType($0) }
             .first(where: { $0.conforms(to: .movie) || $0.conforms(to: .image) }) ?? .data
     }
 
