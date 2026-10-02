@@ -676,7 +676,7 @@ struct SyncLogView: View {
                         HStack(spacing: 6) {
                             directionBadge(entry.direction)
                             Text(entry.recordType)
-                                .font(.system(.subheadline, weight: .semibold))
+                                .font(.system(.subheadline).weight(.semibold))
                             Spacer()
                             Text(entry.timestamp, format: .dateTime.hour().minute().second())
                                 .font(.caption2)

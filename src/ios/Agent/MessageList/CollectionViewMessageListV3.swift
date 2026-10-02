@@ -3,6 +3,26 @@ import UIKit
 import Combine
 import UniformTypeIdentifiers
 
+private extension View {
+    @ViewBuilder
+    func messageListContextMenuCompat<Menu: View, Preview: View>(
+        @ViewBuilder menuItems: () -> Menu,
+        @ViewBuilder preview: () -> Preview
+    ) -> some View {
+        if #available(iOS 16.0, *) {
+            self.contextMenu(menuItems: menuItems, preview: preview)
+        } else {
+            self.contextMenu(menuItems: menuItems)
+        }
+    }
+
+    func messageListContextMenuCompat<Menu: View>(
+        @ViewBuilder menuItems: () -> Menu
+    ) -> some View {
+        self.contextMenu(menuItems: menuItems)
+    }
+}
+
 extension Notification.Name {
     /// Posted by toggleUsage to tell the Coordinator to re-snapshot so the
     /// footer cell is inserted or removed on demand.
@@ -350,7 +370,7 @@ private struct BridgedAssistantBlockV3: View {
         // (same pattern as BridgedAssistantFooterV3).
         .overlay {
             Color.clear.frame(width: 0, height: 0)
-                .contextMenu {
+                .messageListContextMenuCompat {
                     Button {
                         let text = message.blocks
                             .filter { if case .text = $0.kind { return true }; return false }
@@ -525,7 +545,7 @@ private struct BridgedAssistantFooterV3: View {
         // report inflated heights to systemLayoutSizeFitting, causing height oscillation.
         .overlay {
             Color.clear.frame(width: 0, height: 0)
-                .contextMenu {
+                .messageListContextMenuCompat {
                     Button {
                         let text = message.blocks
                             .filter { if case .text = $0.kind { return true }; return false }
@@ -596,7 +616,7 @@ private struct BridgedAssistantFooterV3: View {
                 Text(error).font(.caption).foregroundStyle(.red).lineLimit(2)
             }
             .contentShape(Rectangle())
-            .contextMenu {
+            .messageListContextMenuCompat {
                 Button {
                     UIPasteboard.general.string = error
                 } label: {
