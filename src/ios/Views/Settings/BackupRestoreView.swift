@@ -489,7 +489,7 @@ struct BackupRestoreView: View {
                     } else {
                         BackupActionIcon(systemName: "arrow.down.doc.fill", tint: .indigo)
                         Text("Start Restore")
-                            .font(.system(.body, weight: .semibold))
+                            .font(.system(.body).weight(.semibold))
                     }
                     Spacer(minLength: 0)
                 }

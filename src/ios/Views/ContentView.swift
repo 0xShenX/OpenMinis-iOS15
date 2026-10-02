@@ -1,4 +1,113 @@
 import SwiftUI
+import UniformTypeIdentifiers
+
+private struct ContentIOS15AnyShape: Shape {
+    private let makePath: (CGRect) -> Path
+
+    init<S: Shape>(_ shape: S) {
+        makePath = { shape.path(in: $0) }
+    }
+
+    func path(in rect: CGRect) -> Path { makePath(rect) }
+}
+
+private struct ContentIOS15UnevenRoundedRectangle: Shape {
+    var topLeadingRadius: CGFloat
+    var bottomLeadingRadius: CGFloat
+    var bottomTrailingRadius: CGFloat
+    var topTrailingRadius: CGFloat
+    var style: RoundedCornerStyle = .continuous
+
+    func path(in rect: CGRect) -> Path {
+        if #available(iOS 16.0, *) {
+            return UnevenRoundedRectangle(
+                topLeadingRadius: topLeadingRadius, bottomLeadingRadius: bottomLeadingRadius,
+                bottomTrailingRadius: bottomTrailingRadius, topTrailingRadius: topTrailingRadius,
+                style: style).path(in: rect)
+        }
+        // These folder segments use equal radii on their rounded corners.
+        let limit = max(0, min(rect.width, rect.height) / 2)
+        let tl = min(max(0, topLeadingRadius), limit)
+        let bl = min(max(0, bottomLeadingRadius), limit)
+        let br = min(max(0, bottomTrailingRadius), limit)
+        let tr = min(max(0, topTrailingRadius), limit)
+        let k: CGFloat = 0.5522847498
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + tl, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY))
+        path.addCurve(to: CGPoint(x: rect.maxX, y: rect.minY + tr),
+                      control1: CGPoint(x: rect.maxX - tr + k * tr, y: rect.minY),
+                      control2: CGPoint(x: rect.maxX, y: rect.minY + tr - k * tr))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br))
+        path.addCurve(to: CGPoint(x: rect.maxX - br, y: rect.maxY),
+                      control1: CGPoint(x: rect.maxX, y: rect.maxY - br + k * br),
+                      control2: CGPoint(x: rect.maxX - br + k * br, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + bl, y: rect.maxY))
+        path.addCurve(to: CGPoint(x: rect.minX, y: rect.maxY - bl),
+                      control1: CGPoint(x: rect.minX + bl - k * bl, y: rect.maxY),
+                      control2: CGPoint(x: rect.minX, y: rect.maxY - bl + k * bl))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tl))
+        path.addCurve(to: CGPoint(x: rect.minX + tl, y: rect.minY),
+                      control1: CGPoint(x: rect.minX, y: rect.minY + tl - k * tl),
+                      control2: CGPoint(x: rect.minX + tl - k * tl, y: rect.minY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct ContentIOS15ColumnWidth: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content.navigationSplitViewColumnWidth(min: 340, ideal: 380, max: 500)
+        } else {
+            // NavigationView owns the legacy sidebar width; do not constrain its rows.
+            content
+        }
+    }
+}
+
+private struct ContentIOS15StringDrop: ViewModifier {
+    let action: ([String]) -> Bool
+    let isTargeted: (Bool) -> Void
+    @State private var targeted = false
+
+    func body(content: Content) -> some View {
+        content
+            .onDrop(of: [UTType.text.identifier], isTargeted: $targeted) { providers in
+                let strings = providers.filter { $0.canLoadObject(ofClass: NSString.self) }
+                guard !strings.isEmpty else { return false }
+                Task { @MainActor in
+                    var values: [String] = []
+                    for provider in strings {
+                        let value: String? = await withCheckedContinuation { continuation in
+                            _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+                                continuation.resume(returning: (object as? NSString).map { $0 as String })
+                            }
+                        }
+                        if let value, !value.isEmpty { values.append(value) }
+                    }
+                    if !values.isEmpty { _ = action(SidebarGroup.dedupedPreservingOrder(values)) }
+                    isTargeted(false)
+                }
+                return true
+            }
+            .onChange(of: targeted, perform: isTargeted)
+            .onDisappear { isTargeted(false) }
+    }
+}
+
+private extension View {
+    func contentIOS15Draggable(_ value: String) -> some View {
+        onDrag { NSItemProvider(object: value as NSString) }
+    }
+
+    func contentIOS15DropDestination(
+        action: @escaping ([String]) -> Bool,
+        isTargeted: @escaping (Bool) -> Void
+    ) -> some View {
+        modifier(ContentIOS15StringDrop(action: action, isTargeted: isTargeted))
+    }
+}
 
 private let shareLog = AppLogger(category: "Share")
 private let draftLog = AppLogger(category: "DraftSession")
@@ -394,18 +503,18 @@ private struct FolderSurface: ViewModifier {
             : UIColor(red: 252/255.0, green: 252/255.0, blue: 252/255.0, alpha: 1)
     })
 
-    private var shape: AnyShape {
+    private var shape: ContentIOS15AnyShape {
         switch kind {
         case .lone:
-            return AnyShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            return ContentIOS15AnyShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .top:
-            return AnyShape(UnevenRoundedRectangle(
+            return ContentIOS15AnyShape(ContentIOS15UnevenRoundedRectangle(
                 topLeadingRadius: 16, bottomLeadingRadius: 0,
                 bottomTrailingRadius: 0, topTrailingRadius: 16, style: .continuous))
         case .middle:
-            return AnyShape(Rectangle())
+            return ContentIOS15AnyShape(Rectangle())
         case .bottom:
-            return AnyShape(UnevenRoundedRectangle(
+            return ContentIOS15AnyShape(ContentIOS15UnevenRoundedRectangle(
                 topLeadingRadius: 0, bottomLeadingRadius: 16,
                 bottomTrailingRadius: 16, topTrailingRadius: 0, style: .continuous))
         }
@@ -474,12 +583,12 @@ private struct FolderCardBackground: ViewModifier {
     let isDropTarget: Bool
     let isExpanded: Bool
 
-    private var dropShape: AnyShape {
+    private var dropShape: ContentIOS15AnyShape {
         isExpanded
-            ? AnyShape(UnevenRoundedRectangle(
+            ? ContentIOS15AnyShape(ContentIOS15UnevenRoundedRectangle(
                 topLeadingRadius: 16, bottomLeadingRadius: 0,
                 bottomTrailingRadius: 0, topTrailingRadius: 16, style: .continuous))
-            : AnyShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            : ContentIOS15AnyShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     func body(content: Content) -> some View {
@@ -811,7 +920,7 @@ private struct FolderPickerSheet: View {
                         Spacer()
                         Button("Create", action: createIfNamed)
                             .buttonStyle(.borderless)
-                            .font(.system(.body, weight: .semibold))
+                            .font(.system(.body).weight(.semibold))
                             .disabled(trimmedName.isEmpty || duplicateFolder != nil)
                     }
                     // [T-folder-duplicate-name] Name already taken. Says so, and
@@ -3251,7 +3360,7 @@ struct ContentView: View {
             // with a hand-rolled gesture sequence — the
             // gesture layer is where system gestures are
             // beaten (see the WebView sheet-dismiss fix).
-            .draggable(session.id)
+            .contentIOS15Draggable(session.id)
             .overlay {
                 if regeneratingTitleSessionId == session.id {
                     ZStack {
@@ -3453,7 +3562,7 @@ struct ContentView: View {
                                 // with a hand-rolled gesture sequence — the
                                 // gesture layer is where system gestures are
                                 // beaten (see the WebView sheet-dismiss fix).
-                                .draggable(session.id)
+                                .contentIOS15Draggable(session.id)
                                 .overlay {
                                     if regeneratingTitleSessionId == session.id {
                                         ZStack {
@@ -3514,7 +3623,7 @@ struct ContentView: View {
                                             // container's bottom radii so it stays
                                             // wrapped by the corners.
                                             if isSessionHighlighted(session.id) {
-                                                UnevenRoundedRectangle(
+                                                ContentIOS15UnevenRoundedRectangle(
                                                     topLeadingRadius: 0,
                                                     bottomLeadingRadius: isLast ? 16 : 0,
                                                     bottomTrailingRadius: isLast ? 16 : 0,
@@ -3556,7 +3665,7 @@ struct ContentView: View {
 
         }
         .listStyle(.plain)
-        .navigationSplitViewColumnWidth(min: 340, ideal: 380, max: 500)
+        .modifier(ContentIOS15ColumnWidth())
         // [T-macos27-liquid-glass-navbar] See MacOS27GlassWorkaround. Applied to
         // the Mac sidebar List only; the iPhone compact list (the other branch
         // of sessionList) is unaffected and does not get it.
@@ -5261,7 +5370,7 @@ struct ContentView: View {
             // Dropping on a date-bucket header moves the sessions OUT of any
             // folder — the drag gesture works both directions, otherwise
             // moving out would still require a trip through the menu.
-            .dropDestination(for: String.self) { sessionIds, _ in
+            .contentIOS15DropDestination { sessionIds in
                 Task { @MainActor in
                     await ChatStore.shared.setFolder(nil, forSessions: sessionIds)
                     refreshSessionList()
@@ -5468,7 +5577,7 @@ struct ContentView: View {
         // ScrollViewReader anchor for the mini-bar's "back to header" jump.
         .id("folderHeader-\(group.folderId ?? "")")
         .listRowInsets(EdgeInsets())
-        .dropDestination(for: String.self) { sessionIds, _ in
+        .contentIOS15DropDestination { sessionIds in
             guard let fid = group.folderId else { return false }
             Task { @MainActor in
                 await ChatStore.shared.setFolder(fid, forSessions: sessionIds)
@@ -7541,7 +7650,7 @@ struct SessionEditSheet: View {
                         guard !title.isEmpty else { return }
                         onSave(title, editCategory.isEmpty ? nil : editCategory)
                     }
-                    .font(.system(.body, weight: .bold))
+                    .font(.system(.body).weight(.bold))
                     .disabled(editTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
@@ -8012,7 +8121,7 @@ private struct AppearanceSettingsView: View {
                             if appLanguage == lang.id {
                                 Image(systemName: "checkmark")
                                     .foregroundStyle(.blue)
-                                    .font(.system(.body, weight: .semibold))
+                                    .font(.system(.body).weight(.semibold))
                             }
                         }
                     }

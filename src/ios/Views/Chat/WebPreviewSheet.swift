@@ -745,7 +745,7 @@ struct MinisSafariView: View {
                 .padding(.bottom, 18) // clears the home-indicator gutter
         }
         .statusBarHidden(true)
-        .persistentSystemOverlays(.hidden)
+        .chatIOS15HideSystemOverlays()
         .preferredColorScheme(appearanceMode == 1 ? .light : appearanceMode == 2 ? .dark : nil)
         .sheet(isPresented: $showShareSheet) {
             MinisShareSheet(url: shareURL)
@@ -884,8 +884,7 @@ struct MinisLinkPreviewView: View {
                 .ignoresSafeArea(.keyboard)
                 .navigationTitle(holder.pageTitle.isEmpty ? (url.host ?? url.absoluteString) : holder.pageTitle)
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-                .toolbarBackground(.visible, for: .navigationBar)
+                .chatIOS15NavigationBackground(material: true)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button { dismiss() } label: {

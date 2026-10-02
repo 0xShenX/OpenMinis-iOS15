@@ -4584,7 +4584,21 @@ final class VideoAttachment: NSTextAttachment {
 
             var thumb: UIImage?
             do {
-                let (cgImage, _) = try await generator.image(at: .zero)
+                let cgImage: CGImage
+                if #available(iOS 16.0, *) {
+                    let (image, _) = try await generator.image(at: .zero)
+                    cgImage = image
+                } else {
+                    cgImage = try await withCheckedThrowingContinuation { continuation in
+                        generator.generateCGImagesAsynchronously(forTimes: [NSValue(time: .zero)]) { _, image, _, result, error in
+                            if result == .succeeded, let image {
+                                continuation.resume(returning: image)
+                            } else {
+                                continuation.resume(throwing: error ?? NSError(domain: "ChatIOS15VideoThumbnail", code: -1))
+                            }
+                        }
+                    }
+                }
                 thumb = UIImage(cgImage: cgImage)
             } catch {
                 // Fallback: no thumbnail

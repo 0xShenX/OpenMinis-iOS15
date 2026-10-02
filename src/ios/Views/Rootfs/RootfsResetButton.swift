@@ -228,7 +228,7 @@ struct RootfsResetToolbarItem: ToolbarContent {
         VStack(spacing: 20) {
             Text("Rootfs Management")
                 .font(.title)
-                .font(.system(.body, weight: .bold))
+                .font(.system(.body).weight(.bold))
 
             RootfsResetButton(style: .prominent)
         }

@@ -2887,7 +2887,7 @@ struct AIChatView: View {
                 // layout and trips a precondition on the iOS 18 async renderer
                 // (ViewGraphGeometryObservers.needsUpdate SIGTRAP). The action
                 // also fires with the initial value, covering the old onAppear.
-                .onGeometryChange(for: CGFloat.self) { proxy in
+                .chatIOS15GeometryChange(for: CGFloat.self) { proxy in
                     proxy.size.height
                 } action: { newH in
                     floatingBarHeight = newH
@@ -3851,7 +3851,7 @@ struct AIChatView: View {
                     // [T-ios-geometry-observer-crash] traced an async-renderer
                     // SIGTRAP to that scaffold, and this file already
                     // standardised on the observer for exactly that reason.
-                    .onGeometryChange(for: CGFloat.self) { proxy in
+                    .chatIOS15GeometryChange(for: CGFloat.self) { proxy in
                         proxy.size.width
                     } action: { w in
                         guard w > 0, abs(w - inputBottomRowWidth) > 0.5 else { return }
@@ -3912,7 +3912,7 @@ struct AIChatView: View {
             // floating-bar site). Fires with the initial value too, so the
             // old onAppear seeding AND its diagnostic log are preserved as
             // a single unified line.
-            .onGeometryChange(for: CGRect.self) { proxy in
+            .chatIOS15GeometryChange(for: CGRect.self) { proxy in
                 proxy.frame(in: .global)
             } action: { frame in
                 let newH = frame.size.height
@@ -4400,7 +4400,7 @@ struct AIChatView: View {
                 // reserves the top/bottom share.
                 .padding(Self.popupRowInset)
             }
-            .scrollIndicators(.visible)
+            .chatIOS15VisibleScrollIndicators()
             .frame(height: Self.slashPickerFixedHeight)
         }
     }
@@ -4471,7 +4471,7 @@ struct AIChatView: View {
                         // [T-slash-picker-fixed-height] Match slash popup:
                         // exactly 4 rows tall, scrolls on overflow with the
                         // visible indicator above.
-                        .scrollIndicators(.visible)
+                        .chatIOS15VisibleScrollIndicators()
                         .frame(height: Self.slashPickerFixedHeight)
                         .onChange(of: vm.mentionSelectedIndex) { newIndex in
                             guard newIndex >= 0, newIndex < rows.count else { return }
@@ -5309,8 +5309,7 @@ struct NavBarStyleModifier: ViewModifier {
         } else {
             // iOS 16–18: opaque navbar background
             content
-                .toolbarBackground(ChatColors.background, for: .navigationBar)
-                .toolbarBackground(.visible, for: .navigationBar)
+                .chatIOS15NavigationBackground(color: UIColor(ChatColors.background))
                 .overlay(alignment: .top) {
                     if measuresSafeArea {
                         // [T-ios-geometry-observer-crash] onGeometryChange
@@ -5321,7 +5320,7 @@ struct NavBarStyleModifier: ViewModifier {
                         // before, and the action's initial fire covers the old
                         // onAppear seed.
                         Color.clear
-                            .onGeometryChange(for: CGFloat.self) { proxy in
+                            .chatIOS15GeometryChange(for: CGFloat.self) { proxy in
                                 proxy.safeAreaInsets.top
                             } action: { topSafeAreaInset = $0 }
                             .ignoresSafeArea()
@@ -5332,6 +5331,170 @@ struct NavBarStyleModifier: ViewModifier {
     }
 }
 
+
+// MARK: - iOS 15 Chat Compatibility
+
+private struct ChatIOS15GeometryKey<Value: Equatable>: PreferenceKey {
+    static var defaultValue: Value? { nil }
+    static func reduce(value: inout Value?, nextValue: () -> Value?) {
+        if let next = nextValue() { value = next }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func chatIOS15GeometryChange<Value: Equatable>(for type: Value.Type,
+        of transform: @escaping (GeometryProxy) -> Value,
+        action: @escaping (Value) -> Void) -> some View {
+        if #available(iOS 16.0, *) {
+            self.onGeometryChange(for: type, of: transform, action: action)
+        } else {
+            self.background(GeometryReader { proxy in
+                Color.clear.preference(key: ChatIOS15GeometryKey<Value>.self, value: transform(proxy))
+            })
+            .onPreferenceChange(ChatIOS15GeometryKey<Value>.self) { value in
+                if let value { action(value) }
+            }
+        }
+    }
+
+    @ViewBuilder
+    func chatIOS15ContextMenu<Items: View, Preview: View>(
+        @ViewBuilder menuItems: () -> Items, @ViewBuilder preview: () -> Preview) -> some View {
+        if #available(iOS 16.0, *) {
+            self.contextMenu(menuItems: menuItems, preview: preview)
+        } else {
+            self.contextMenu(menuItems: menuItems)
+        }
+    }
+
+    func chatIOS15ContextMenu<Items: View>(@ViewBuilder menuItems: () -> Items) -> some View {
+        self.contextMenu(menuItems: menuItems)
+    }
+
+    @ViewBuilder
+    func chatIOS15VisibleScrollIndicators() -> some View {
+        if #available(iOS 16.0, *) {
+            self.scrollIndicators(.visible)
+        } else {
+            // iOS 15 ScrollView shows indicators by default.
+            self
+        }
+    }
+
+    @ViewBuilder
+    func chatIOS15HideSystemOverlays() -> some View {
+        if #available(iOS 16.0, *) {
+            self.persistentSystemOverlays(.hidden)
+        } else {
+            // The home indicator remains visible on iOS 15; web content is unchanged.
+            self
+        }
+    }
+
+    @ViewBuilder
+    func chatIOS15NavigationBackground(color: UIColor = .systemBackground, material: Bool = false) -> some View {
+        if #available(iOS 16.0, *) {
+            if material {
+                self.toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+                    .toolbarBackground(.visible, for: .navigationBar)
+            } else {
+                self.toolbarBackground(Color(color), for: .navigationBar)
+                    .toolbarBackground(.visible, for: .navigationBar)
+            }
+        } else {
+            self.background(ChatIOS15NavigationAppearance(color: color, material: material))
+        }
+    }
+}
+
+private struct ChatIOS15NavigationAppearance: UIViewControllerRepresentable {
+    let color: UIColor
+    let material: Bool
+
+    class Controller: UIViewController {
+        var color: UIColor = .systemBackground
+        var material = false
+        weak var styledBar: UINavigationBar?
+        var previousStandard: UINavigationBarAppearance?
+        var previousScrollEdge: UINavigationBarAppearance?
+        var previousCompact: UINavigationBarAppearance?
+
+        func apply() {
+            guard let bar = navigationController?.navigationBar else { return }
+            if styledBar !== bar {
+                styledBar = bar
+                previousStandard = bar.standardAppearance
+                previousScrollEdge = bar.scrollEdgeAppearance
+                previousCompact = bar.compactAppearance
+            }
+            let appearance = UINavigationBarAppearance(barAppearance: bar.standardAppearance)
+            if material {
+                appearance.configureWithDefaultBackground()
+                appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+            } else {
+                appearance.configureWithOpaqueBackground()
+                appearance.backgroundColor = color
+            }
+            bar.standardAppearance = appearance
+            bar.scrollEdgeAppearance = appearance
+            bar.compactAppearance = appearance
+        }
+
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            apply()
+        }
+
+        override func viewDidLayoutSubviews() {
+            super.viewDidLayoutSubviews()
+            apply()
+        }
+
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            if let bar = styledBar, let previousStandard {
+                bar.standardAppearance = previousStandard
+                bar.scrollEdgeAppearance = previousScrollEdge
+                bar.compactAppearance = previousCompact
+            }
+            styledBar = nil
+        }
+    }
+
+    func makeUIViewController(context: Context) -> Controller {
+        let controller = Controller()
+        controller.color = color
+        controller.material = material
+        controller.view.backgroundColor = .clear
+        return controller
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.color = color
+        controller.material = material
+        controller.apply()
+    }
+}
+
+struct ChatIOS15BottomCorners: ViewModifier {
+    let radius: CGFloat
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content.clipShape(UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius))
+        } else {
+            content.clipShape(ChatIOS15BottomCornerShape(radius: radius))
+        }
+    }
+}
+
+private struct ChatIOS15BottomCornerShape: Shape {
+    let radius: CGFloat
+    func path(in rect: CGRect) -> Path {
+        Path(UIBezierPath(roundedRect: rect, byRoundingCorners: [.bottomLeft, .bottomRight],
+            cornerRadii: CGSize(width: radius, height: radius)).cgPath)
+    }
+}
 
 // MARK: - Chat Trailing "…" Menu
 
@@ -5830,6 +5993,7 @@ private struct ChatTrailingMenuButton: UIViewRepresentable {
     /// icon-sized footprint and the system wraps it in the same round glass
     /// as a plain toolbar icon (a representable otherwise accepts the full
     /// proposed width -> stretched capsule, the 2026-07-17 regression).
+    @available(iOS 16.0, *)
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIButton, context: Context) -> CGSize? {
         uiView.intrinsicContentSize
     }
@@ -6476,7 +6640,7 @@ private struct SpeechLanguagePickerSheet: View {
                 if loc.identifier == speechManager.locale.identifier {
                     Image(systemName: "checkmark")
                         .foregroundStyle(Color.accentColor)
-                        .font(.system(.body, weight: .semibold))
+                        .font(Font.system(.body).weight(.semibold))
                 }
             }
         }
