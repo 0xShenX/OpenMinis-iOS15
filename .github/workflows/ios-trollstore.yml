@@ -106,7 +106,7 @@ jobs:
           PY
           mkdir -p build/RealTimeCutVADLibrary/Frameworks
           cp "$VAD_SWIFT/Package.swift" build/RealTimeCutVADLibrary/
-          cp -R "$VAD_SWIFT/RealTimeCutVADLibrary"/* build/RealTimeCutVADLibrary/
+          cp -R "$VAD_SWIFT/RealTimeCutVADLibrary" build/RealTimeCutVADLibrary/
           cp -R "$BUILD/RealTimeCutVADCXXLibrary.xcframework" build/RealTimeCutVADLibrary/Frameworks/
           python3 - <<'PY'
           from pathlib import Path
@@ -118,8 +118,11 @@ jobs:
           p.write_text(s)
           x = Path('src/ios/Minis.xcodeproj/project.pbxproj')
           s = x.read_text()
-          s = s.replace('isa = XCRemoteSwiftPackageReference;', 'isa = XCLocalSwiftPackageReference;')
-          s = s.replace('repositoryURL = "https://github.com/helloooideeeeea/RealTimeCutVADLibrary.git";', 'relativePath = "../../build/RealTimeCutVADLibrary";')
+          import re
+          pattern = r'(B318C2F47DB3F301A17E49BE /\* XCRemoteSwiftPackageReference "RealTimeCutVADLibrary" \*/ = \{).*?\n\t\t\};'
+          replacement = r'\1\n\t\t\tisa = XCLocalSwiftPackageReference;\n\t\t\trelativePath = "../../build/RealTimeCutVADLibrary";\n\t\t};'
+          s, count = re.subn(pattern, replacement, s, count=1, flags=re.S)
+          assert count == 1, 'VAD package reference not found'
           x.write_text(s)
           PY
           test -f build/RealTimeCutVADLibrary/Package.swift
