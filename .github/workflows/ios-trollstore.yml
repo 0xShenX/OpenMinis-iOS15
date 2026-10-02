@@ -132,8 +132,8 @@ jobs:
           codesign --force --sign - --entitlements "$RUNNER_TEMP/diagnostics/share-signing.plist" "$SHARE"
           codesign --force --sign - --entitlements "$RUNNER_TEMP/diagnostics/app-signing.plist" "$APP"
           codesign --verify --deep --strict "$APP"
-          codesign --display --entitlements - "$APP" > "$RUNNER_TEMP/diagnostics/app-entitlements.plist"
-          codesign --display --entitlements - "$SHARE" > "$RUNNER_TEMP/diagnostics/share-entitlements.plist"
+          codesign --display --entitlements - --xml "$APP" > "$RUNNER_TEMP/diagnostics/app-entitlements.plist"
+          codesign --display --entitlements - --xml "$SHARE" > "$RUNNER_TEMP/diagnostics/share-entitlements.plist"
           /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$RUNNER_TEMP/diagnostics/app-entitlements.plist"
           /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$RUNNER_TEMP/diagnostics/share-entitlements.plist"
           find "$APP" -type f -print0 | while IFS= read -r -d '' binary; do
