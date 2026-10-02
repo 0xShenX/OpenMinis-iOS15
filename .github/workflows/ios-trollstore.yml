@@ -49,40 +49,94 @@ jobs:
           xcodebuild -downloadComponent MetalToolchain
           xcrun -sdk iphoneos metal --version
           cp src/ios/Configs/ProviderCustomization.xcconfig.example src/ios/Configs/ProviderCustomization.xcconfig
+      - name: Build VAD from pinned C++ and Swift sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          exec > >(tee "$RUNNER_TEMP/diagnostics/vad-source-build.log") 2>&1
+          VAD_CXX="$RUNNER_TEMP/vad-cxx"
+          VAD_SWIFT="$RUNNER_TEMP/vad-swift"
+          git clone https://github.com/helloooideeeeea/RealTimeCutVADCXXLibrary.git "$VAD_CXX"
+          git -C "$VAD_CXX" checkout a56fc44c9b19a0faba73c70bec81815e6f304964
+          git clone https://github.com/helloooideeeeea/RealTimeCutVADLibrary.git "$VAD_SWIFT"
+          git -C "$VAD_SWIFT" checkout b059608836a055dc0ce74ca2d0eeb19fc54cb7d4
+          mkdir -p "$VAD_CXX/Frameworks"
+          curl --fail --retry 5 --retry-all-errors -L \
+            https://github.com/helloooideeeeea/RealTimeCutVADLibraryForXCFramework/releases/download/v1.0.6/onnxruntime.xcframework.zip \
+            -o "$RUNNER_TEMP/onnxruntime.zip"
+          curl --fail --retry 5 --retry-all-errors -L \
+            https://github.com/helloooideeeeea/RealTimeCutVADLibraryForXCFramework/releases/download/v1.0.6/webrtc_audio_processing.xcframework.zip \
+            -o "$RUNNER_TEMP/webrtc_audio_processing.zip"
+          unzip -q "$RUNNER_TEMP/onnxruntime.zip" -d "$VAD_CXX/Frameworks"
+          unzip -q "$RUNNER_TEMP/webrtc_audio_processing.zip" -d "$VAD_CXX/Frameworks"
+          BUILD="$RUNNER_TEMP/vad-build"
+          rm -rf "$BUILD"
+          build_vad() {
+            local sdk="$1" out="$2" product="$3"
+            xcodebuild -project "$VAD_CXX/RealTimeCutVADCXXLibrary.xcodeproj" \
+              -scheme RealTimeCutVADCXXLibrary -configuration Release -sdk "$sdk" \
+              -derivedDataPath "$out" BUILD_DIR="$out" \
+              IPHONEOS_DEPLOYMENT_TARGET="$IOS_DEPLOYMENT_TARGET" \
+              MACOSX_DEPLOYMENT_TARGET=11.0 BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+              CODE_SIGNING_ALLOWED=NO clean build
+            test -d "$out/$product/RealTimeCutVADCXXLibrary.framework"
+          }
+          build_vad iphoneos "$BUILD/device" Release-iphoneos
+          build_vad iphonesimulator "$BUILD/simulator" Release-iphonesimulator
+          xcodebuild -create-xcframework \
+            -framework "$BUILD/device/Release-iphoneos/RealTimeCutVADCXXLibrary.framework" \
+            -framework "$BUILD/simulator/Release-iphonesimulator/RealTimeCutVADCXXLibrary.framework" \
+            -output "$BUILD/RealTimeCutVADCXXLibrary.xcframework"
+          # Inspect every native slice, including the two prebuilt inputs. This
+          # is a compatibility gate, not a Mach-O retagging step.
+          find "$BUILD/RealTimeCutVADCXXLibrary.xcframework" "$VAD_CXX/Frameworks" \
+            -type f -perm -111 -print0 | while IFS= read -r -d '' binary; do
+            file "$binary" | grep -q 'Mach-O' || continue
+            xcrun vtool -show-build "$binary" | tee -a "$RUNNER_TEMP/diagnostics/vad-macho-build-versions.log"
+          done
+          python3 - "$RUNNER_TEMP/diagnostics/vad-macho-build-versions.log" <<'PY'
+          import re, sys
+          bad = []
+          for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
+              match = re.search(r'minos (\d+)\.(\d+)', line)
+              if match and (int(match.group(1)), int(match.group(2))) > (15, 4):
+                  bad.append(line.rstrip())
+          if bad:
+              raise SystemExit('VAD dependency minos exceeds iOS 15.4:\n' + '\n'.join(bad))
+          PY
+          mkdir -p build/RealTimeCutVADLibrary/Frameworks
+          cp "$VAD_SWIFT/Package.swift" build/RealTimeCutVADLibrary/
+          cp -R "$VAD_SWIFT/RealTimeCutVADLibrary"/* build/RealTimeCutVADLibrary/
+          cp -R "$BUILD/RealTimeCutVADCXXLibrary.xcframework" build/RealTimeCutVADLibrary/Frameworks/
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('build/RealTimeCutVADLibrary/Package.swift')
+          s = p.read_text()
+          start = s.index('        .binaryTarget(')
+          end = s.index('        ),', start) + len('        ),')
+          s = s[:start] + '''        .binaryTarget(\n            name: "RealTimeCutVADCXXLibrary",\n            path: "Frameworks/RealTimeCutVADCXXLibrary.xcframework"\n        )''' + s[end:]
+          p.write_text(s)
+          x = Path('src/ios/Minis.xcodeproj/project.pbxproj')
+          s = x.read_text()
+          s = s.replace('isa = XCRemoteSwiftPackageReference;', 'isa = XCLocalSwiftPackageReference;')
+          s = s.replace('repositoryURL = "https://github.com/helloooideeeeea/RealTimeCutVADLibrary.git";', 'relativePath = "../../build/RealTimeCutVADLibrary";')
+          x.write_text(s)
+          PY
+          test -f build/RealTimeCutVADLibrary/Package.swift
+
       - name: Resolve packages and parse Swift before native builds
         shell: bash
         run: |
           set -euo pipefail
           exec > >(tee "$RUNNER_TEMP/diagnostics/preflight.log") 2>&1
-          # GitHub macOS runners can retain a partial binary-artifact download;
-          # SwiftPM refuses to overwrite that path on the next resolution.
           rm -rf "$HOME/Library/Caches/org.swift.swiftpm/artifacts"
           rm -rf "$HOME/Library/Developer/Xcode/DerivedData/SourcePackages"
           xcodebuild -version
           xcodebuild -showsdks
           xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
-          # The upstream VAD XCFramework declares iOS 15.6 even though its
-          # C++ payload has no iOS-15.6-only API dependency. Re-mark each iOS
-          # Mach-O slice for the actual app contract (15.4) before Xcode links
-          # it. The package remains the upstream artifact; this only changes
-          # LC_BUILD_VERSION and is verified again after packaging.
-          vad_count=0
-          while IFS= read -r -d '' vad_binary; do
-            if file "$vad_binary" | grep -q 'Mach-O'; then
-              vtool -set-build-version ios "$IOS_DEPLOYMENT_TARGET" "$(xcrun --sdk iphoneos --show-sdk-version)" \
-                -replace -output "$vad_binary.retargeted" "$vad_binary"
-              mv "$vad_binary.retargeted" "$vad_binary"
-              vad_count=$((vad_count + 1))
-            fi
-          done < <(find "$RUNNER_TEMP/SourcePackages" -path '*RealTimeCutVADCXXLibrary.framework/*' -type f -print0)
-          test "$vad_count" -gt 0
-          printf 'Retargeted %s VAD Mach-O slice(s) to iOS %s\\n' "$vad_count" "$IOS_DEPLOYMENT_TARGET"
           xcodebuild -showBuildSettings -project "$PROJECT" -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" CODE_SIGNING_ALLOWED=NO
-          # Standalone Swift scripts under MinisTests/Standalone intentionally
-          # contain top-level executable statements and are not app sources.
-          # Syntax parsing is not availability checking; archive is authoritative.
           find src/ios -name '*.swift' ! -path 'src/ios/MinisTests/Standalone/*' -print0 | xargs -0 xcrun swiftc -frontend -parse
 
       - name: Build native dependencies
