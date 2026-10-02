@@ -62,6 +62,22 @@ jobs:
           xcodebuild -showsdks
           xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+          # The upstream VAD XCFramework declares iOS 15.6 even though its
+          # C++ payload has no iOS-15.6-only API dependency. Re-mark each iOS
+          # Mach-O slice for the actual app contract (15.4) before Xcode links
+          # it. The package remains the upstream artifact; this only changes
+          # LC_BUILD_VERSION and is verified again after packaging.
+          vad_count=0
+          while IFS= read -r -d '' vad_binary; do
+            if file "$vad_binary" | grep -q 'Mach-O'; then
+              vtool -set-build-version ios "$IOS_DEPLOYMENT_TARGET" "$(xcrun --sdk iphoneos --show-sdk-version)" \
+                -replace -output "$vad_binary.retargeted" "$vad_binary"
+              mv "$vad_binary.retargeted" "$vad_binary"
+              vad_count=$((vad_count + 1))
+            fi
+          done < <(find "$RUNNER_TEMP/SourcePackages" -path '*RealTimeCutVADCXXLibrary.framework/*' -type f -print0)
+          test "$vad_count" -gt 0
+          printf 'Retargeted %s VAD Mach-O slice(s) to iOS %s\\n' "$vad_count" "$IOS_DEPLOYMENT_TARGET"
           xcodebuild -showBuildSettings -project "$PROJECT" -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" CODE_SIGNING_ALLOWED=NO
           # Standalone Swift scripts under MinisTests/Standalone intentionally
