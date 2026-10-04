@@ -246,7 +246,7 @@ struct SoulSettingsView: View {
             TextEditor(text: $bodyText)
                 .frame(minHeight: 220)
                 .font(.system(.body, design: .monospaced))
-                .scrollContentBackground(.hidden)
+                .scrollContentBackgroundCompat(.hidden)
             // SwiftUI's TextEditor has no native placeholder. We render
             // a greyed hint on top when the body is empty + not being
             // typed into. allowsHitTesting(false) so taps fall through
@@ -423,7 +423,7 @@ private struct SoulEmojiPickerSheet: View {
     ]
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             VStack(spacing: 20) {
                 // Live preview at the size the chat header actually uses, so
                 // the user judges the glyph at its real scale rather than at
@@ -494,7 +494,7 @@ private struct SoulEmojiPickerSheet: View {
                 }
             }
         }
-        .presentationDetents([.height(380)])
+        .presentationDetentsCompat([.height(380)])
     }
 
     /// Keep at most one emoji, preferring whatever the user just added.

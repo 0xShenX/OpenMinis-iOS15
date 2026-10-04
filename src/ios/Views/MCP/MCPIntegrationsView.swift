@@ -174,7 +174,7 @@ struct MCPToolsSheet: View {
     @State private var errorText: String?
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             List {
                 if isLoading {
                     HStack(spacing: 10) {
@@ -228,7 +228,7 @@ struct MCPToolsSheet: View {
                     Button(AppLocalized("Done")) { dismiss() }
                 }
             }
-            .task { await refresh() }
+            .taskCompat { await refresh() }
         }
     }
 

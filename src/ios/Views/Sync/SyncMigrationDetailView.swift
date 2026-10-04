@@ -489,11 +489,11 @@ struct SyncMigrationDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
 #endif
         // [T-ios-migration-timer-sessionlist-uaf-crash] `.task` async refresh loop
-        // replaces the old `.task { await refresh() }` + `.onReceive(timer)` pair.
+        // replaces the old `.taskCompat { await refresh() }` + `.onReceive(timer)` pair.
         // SwiftUI owns this Task by view identity and cancels it deterministically on
         // teardown, so there is no graph-bound Combine sink to be released
         // mid-transaction (the crash that pattern caused — see refreshIntervalSeconds).
-        .task { await refreshLoop() }
+        .taskCompat { await refreshLoop() }
         .onAppear {
             if #available(iOS 17.0, *) { SyncCore.shared.userOnSyncSheet = true }
             updateIdleTimer()
@@ -515,7 +515,7 @@ struct SyncMigrationDetailView: View {
         .onChange(of: vm?.pendingPush ?? 0) { _ in
             updateIdleTimer()
         }
-        .task { await loadZonesIfNeeded() }
+        .taskCompat { await loadZonesIfNeeded() }
         .confirmationDialog(
             zoneDeleteDialogTitle,
             isPresented: Binding(
@@ -995,7 +995,7 @@ struct SyncMigrationDetailView: View {
     /// loop driven by `.task`, replacing the graph-bound `Timer.publish().autoconnect()`
     /// + `.onReceive` that AttributeGraph could tear down mid-transaction (UAF).
     /// SwiftUI cancels this Task on the sheet's teardown, so no dangling subscription
-    /// survives. Refreshes once immediately (mirroring the old `.task { await refresh() }`)
+    /// survives. Refreshes once immediately (mirroring the old `.taskCompat { await refresh() }`)
     /// then every 5s. Skips the refresh while backgrounded — the sheet has nothing to
     /// display then, and it resumes on the next tick after return to foreground.
     @MainActor
@@ -1074,7 +1074,7 @@ private struct PauseSyncSheet: View {
     private let hoursOptions = [1, 3, 6, 12, 24]
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             List {
                 Section {
                     ForEach(hoursOptions, id: \.self) { hours in
@@ -1105,7 +1105,7 @@ private struct PauseSyncSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetentsCompat([.medium])
         .presentationDragIndicator(.visible)
     }
 }

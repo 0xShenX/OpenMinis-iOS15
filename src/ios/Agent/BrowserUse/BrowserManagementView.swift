@@ -36,7 +36,7 @@ struct BrowserManagementView: View {
             cookiesSection
             domainListSection
         }
-        .searchable(text: $searchText, prompt: "Filter by domain")
+        .searchableCompat(text: $searchText, prompt: "Filter by domain")
         .navigationTitle("Browser Settings")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -51,7 +51,7 @@ struct BrowserManagementView: View {
         } message: {
             Text("This will remove all cookies and website data from the Minis browser.")
         }
-        .task {
+        .taskCompat {
             await loadCookies()
         }
     }

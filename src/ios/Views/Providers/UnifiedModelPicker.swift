@@ -655,7 +655,7 @@ struct UnifiedModelPicker: View {
                 }
             }
         }
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search models")
+        .searchableCompat(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search models")
         // [T-picker-search-debounce] Drive the debounced query (GH#271).
         //
         // Each keystroke cancels the pending task, so a burst of typing runs the
@@ -695,12 +695,12 @@ struct UnifiedModelPicker: View {
         }
         .toolbar { toolbarContent }
         .sheet(isPresented: $showCreateGroupSheet) {
-            NavigationStack {
+            NavigationStackCompat {
                 UnifiedModelPicker(config: createGroupConfig())
             }
         }
         .sheet(isPresented: $showGroupsManager) {
-            NavigationStack {
+            NavigationStackCompat {
                 ModelGroupsView()
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
@@ -718,7 +718,7 @@ struct UnifiedModelPicker: View {
             // model while TestSession still ran the OLD one.
             ModelQuickTestSheet(entry: entry)
                 .id(entry.id)
-                .presentationDetents([.medium, .large])
+                .presentationDetentsCompat([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
     }

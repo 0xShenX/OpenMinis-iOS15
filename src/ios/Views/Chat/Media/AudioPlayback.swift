@@ -276,7 +276,7 @@ struct AudioPiPCapsule: View {
                     .sheet(isPresented: $player.showFullPreview) {
                         if let url = player.activeFileURL {
                             MinisAudioPreviewView(fileURL: url)
-                                .presentationDetents([.large])
+                                .presentationDetentsCompat([.large])
                                 .presentationDragIndicator(.hidden)
                         }
                     }
@@ -371,7 +371,7 @@ struct MinisAudioPlayerView: View {
             audioControls
         } else {
             placeholder
-                .task { await waitForFile() }
+                .taskCompat { await waitForFile() }
         }
     }
 
@@ -442,7 +442,7 @@ struct MinisAudioPlayerView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .sheet(isPresented: $showPreview) {
             MinisAudioPreviewView(fileURL: fileURL)
-                .presentationDetents([.large])
+                .presentationDetentsCompat([.large])
                 .presentationDragIndicator(.hidden)
         }
     }

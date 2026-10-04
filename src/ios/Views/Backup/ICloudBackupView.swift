@@ -116,10 +116,10 @@ struct ICloudBackupView: View {
         }
         .navigationTitle("iCloud Backup")
         .navigationBarTitleDisplayMode(.inline)
-        .task {
+        .taskCompat {
             await manager.listBackups()
         }
-        .refreshable {
+        .refreshableCompat {
             await manager.listBackups()
         }
         .alert("Restore Backup", isPresented: .init(

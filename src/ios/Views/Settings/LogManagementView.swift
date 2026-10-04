@@ -242,7 +242,7 @@ struct LogDetailView: View {
                 ShareLink(item: url)
             }
         }
-        .task {
+        .taskCompat {
             let fileURL = url
             let loaded = await Task.detached(priority: .userInitiated) {
                 LoggingManager.shared.readLog(at: fileURL)

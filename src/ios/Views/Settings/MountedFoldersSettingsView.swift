@@ -333,7 +333,7 @@ private struct AddMountSheet: View {
     let onConfirm: () -> Void
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             Form {
                 if let url = sourceURL {
                     Section {

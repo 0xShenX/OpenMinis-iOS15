@@ -219,7 +219,7 @@ struct FileBrowserView: View {
         .sheet(item: $moveOrCopyItem) { item in
             let minisPath = viewModel.rootPath.appendingPathComponent("var/minis")
             let initial = FileManager.default.fileExists(atPath: minisPath.path) ? minisPath : nil
-            NavigationStack {
+            NavigationStackCompat {
                 DirectoryPickerView(
                     rootPath: viewModel.rootPath,
                     rootLabel: viewModel.rootLabel,
@@ -416,7 +416,7 @@ private struct FilePreviewSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             content
                 .navigationTitle(item.name)
                 .navigationBarTitleDisplayMode(.inline)
@@ -519,7 +519,7 @@ private struct MarkdownFilePreview: View {
                 }
             }
         }
-        .task { await load() }
+        .taskCompat { await load() }
     }
 
     private func load() async {
@@ -592,7 +592,7 @@ private struct TextFilePreview: View {
                 }
             }
         }
-        .task { await load() }
+        .taskCompat { await load() }
     }
 
     private func load() async {
@@ -1743,7 +1743,7 @@ private struct DirectoryPickerView: View {
 }
 
 #Preview {
-    NavigationStack {
+    NavigationStackCompat {
         FileBrowserView()
     }
 }

@@ -53,8 +53,8 @@ check("device authorization is requested only inside start()",
 // Nothing may fire on appear: an .onAppear/.task that called start() would
 // defeat the gate entirely while leaving the consent UI visibly intact.
 check("no .onAppear auto-start", sheet.contains(".onAppear { start()"), false)
-check("no .task auto-start", sheet.contains(".task { start()"), false)
-check("no .task { await start", sheet.contains(".task { await start"), false)
+check("no .task auto-start", sheet.contains(".taskCompat { start()"), false)
+check("no .taskCompat { await start", sheet.contains(".taskCompat { await start"), false)
 
 print("\n[2] Cancel sends nothing")
 check("cancel finishes without starting", sheet.contains("Button(AppLocalized(\"Cancel\")) { finish(false) }"))

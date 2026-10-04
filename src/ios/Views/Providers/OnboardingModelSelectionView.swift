@@ -104,7 +104,7 @@ struct OnboardingModelSelectionView: View {
 
             }
         }
-        .searchable(text: $searchText, prompt: "Filter models")
+        .searchableCompat(text: $searchText, prompt: "Filter models")
         .navigationTitle("Select Models")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

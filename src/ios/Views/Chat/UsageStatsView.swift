@@ -292,7 +292,7 @@ struct UsageStatsView: View {
             }
         }
         .navigationTitle("Usage")
-        .task {
+        .taskCompat {
             await vm.load()
         }
     }

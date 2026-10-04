@@ -33,7 +33,7 @@ struct MinisVideoPlayerView: View {
             videoContent
         } else {
             placeholder
-                .task { await waitForFile() }
+                .taskCompat { await waitForFile() }
         }
     }
 

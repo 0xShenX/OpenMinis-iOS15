@@ -37,7 +37,7 @@ struct ConfigConfirmSheet: View {
 
     @ViewBuilder
     private func sheetBody(change: PendingConfigChange) -> some View {
-        NavigationStack {
+        NavigationStackCompat {
             VStack(spacing: 0) {
                 if let caption = change.caption, !caption.isEmpty {
                     Text(caption)
@@ -74,7 +74,7 @@ struct ConfigConfirmSheet: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.75)])
+        .presentationDetentsCompat([.fraction(0.75)])
         .interactiveDismissDisabled()    // force explicit Apply / Cancel
     }
 
@@ -123,7 +123,7 @@ private struct ConfigConfirmRow: View {
                         .foregroundStyle(item.risk == .destructive ? .red
                                          : item.risk == .sensitive ? .orange
                                          : .primary)
-                        .fontWeight(.medium)
+                        .fontWeightCompat(.medium)
                 }
             }
             .font(.system(.footnote, design: .monospaced))

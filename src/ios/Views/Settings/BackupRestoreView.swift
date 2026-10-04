@@ -489,7 +489,7 @@ struct BackupRestoreView: View {
                     } else {
                         BackupActionIcon(systemName: "arrow.down.doc.fill", tint: .indigo)
                         Text("Start Restore")
-                            .fontWeight(.semibold)
+                            .fontWeightCompat(.semibold)
                     }
                     Spacer(minLength: 0)
                 }
@@ -907,10 +907,10 @@ struct FolderPackageListView: View {
                 }
             }
         }
-        .refreshable { await reload() }
+        .refreshableCompat { await reload() }
         .navigationTitle(folder.name)
         .navigationBarTitleDisplayMode(.inline)
-        .task { await reload() }
+        .taskCompat { await reload() }
     }
 
     private func reload() async {
@@ -946,7 +946,7 @@ struct ServerRestorePickerSheet: View {
     @State private var showAddServer = false
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             Form {
                 if !remotes.isEmpty {
                     Section {
@@ -1098,7 +1098,7 @@ struct ServerPackageListView: View {
                     Text("Open folders to browse. Only .minisbak files are shown.")
                 }
             }
-            .refreshable { await reload() }
+            .refreshableCompat { await reload() }
         }
         .navigationTitle(remote.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -1129,7 +1129,7 @@ struct ServerPackageListView: View {
                 secondaryButton: .cancel(Text(AppLocalized("Cancel")))
             )
         }
-        .task { await reload() }
+        .taskCompat { await reload() }
     }
 
     /// [T-restore-breadcrumb] The location bar: a back chevron, then the path
@@ -1342,7 +1342,7 @@ struct ServerPackageListView: View {
             .disabled(cancelFlag.value)
         }
         .padding(24)
-        .presentationDetents([.height(240)])
+        .presentationDetentsCompat([.height(240)])
         // No swipe-to-dismiss: leaving the sheet would hide a transfer that is
         // still running, which is how the concurrency problem started.
         .interactiveDismissDisabled(true)

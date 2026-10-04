@@ -61,7 +61,7 @@ struct EnvironmentVariablesView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .searchable(text: $searchText, prompt: "Filter by name")
+        .searchableCompat(text: $searchText, prompt: "Filter by name")
         .navigationTitle("Environment Variables")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -146,7 +146,7 @@ struct EnvironmentVariablesView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.key)
                     .font(.system(.body, design: .monospaced))
-                    .fontWeight(.medium)
+                    .fontWeightCompat(.medium)
                 Text(isRevealed ? currentValue : String(repeating: "\u{2022}", count: min(currentValue.count, 20)))
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
@@ -228,7 +228,7 @@ private struct EnvVarFormSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             Form {
                 Section {
                     TextField("NAME", text: Binding(
@@ -271,7 +271,7 @@ private struct EnvVarFormSheet: View {
                         TextEditor(text: $note)
                             .frame(minHeight: 80)
                             .focused($focusedField, equals: .note)
-                            .scrollContentBackground(.hidden)
+                            .scrollContentBackgroundCompat(.hidden)
                     }
                 }
 
@@ -308,7 +308,7 @@ private struct EnvVarFormSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetentsCompat([.medium, .large])
         .alert(
             AppLocalized("Delete this variable?"),
             isPresented: $showingDeleteConfirm
@@ -329,7 +329,7 @@ private struct EnvVarFormSheet: View {
         // existing first responder in the parent view tree first — otherwise
         // the chat input / iSH terminal can keep firstResponder and iOS
         // suppresses the sheet's keyboard intermittently.
-        .task {
+        .taskCompat {
             // Resign any first responder owned by the presenting view tree so
             // UIKit doesn't hand the keyboard back to it when the sheet's
             // TextField asks for focus.

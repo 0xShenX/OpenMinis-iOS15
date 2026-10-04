@@ -43,7 +43,7 @@ struct CopilotDeviceLoginSheet: View {
     @State private var loginTask: Task<Void, Never>?
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             VStack(spacing: 24) {
                 switch phase {
                 case .consent:
@@ -90,7 +90,7 @@ struct CopilotDeviceLoginSheet: View {
         // [T-copilot-consent-remembered] Skip the notice for a user who has
         // already accepted it. Placed in `.task` rather than in the `@State`
         // initialiser so the decision is read when the sheet actually appears.
-        .task {
+        .taskCompat {
             if CopilotConstants.hasAcceptedSignInConsent, phase == .consent {
                 start()
             }

@@ -406,7 +406,7 @@ struct BackupDestinationDetailView: View {
             }
         }
 
-        .task { await loadPackages(r) }
+        .taskCompat { await loadPackages(r) }
     }
 
     private func rename(_ r: RcloneRemoteStore.Remote) {
@@ -584,7 +584,7 @@ struct RcloneFolderBrowser: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             Form {
                 Section {
                     if !currentDir.isEmpty {
@@ -669,7 +669,7 @@ struct RcloneFolderBrowser: View {
             }
             // Start where the destination currently points, so "change the
             // folder" begins from the folder in use rather than the root.
-            .task { await list(remote.path) }
+            .taskCompat { await list(remote.path) }
         }
     }
 
@@ -763,7 +763,7 @@ struct RcloneConnectionEditor: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             Form {
                 if let b = backend {
                     Section {

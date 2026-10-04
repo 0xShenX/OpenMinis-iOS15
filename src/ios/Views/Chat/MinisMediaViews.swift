@@ -571,7 +571,7 @@ struct AsyncCacheURLImageTile: View {
 /// Cell-level views (MessageRowView, MarkdownBlockView) live inside UICollectionView
 /// cells whose window hierarchy is unstable. Presenting a sheet from those views causes
 /// SwiftUI to drop the transition animation. To fix this, the actual sheet state and
-/// presentation lives on AIChatView (a stable NavigationStack root), and cell-level
+/// presentation lives on AIChatView (a stable NavigationStackCompat root), and cell-level
 /// views forward URL taps up through this environment action.
 struct OpenMinisURLAction {
     var handler: (URL) -> OpenURLAction.Result
@@ -843,7 +843,7 @@ struct PreviewTitleToggle: View {
 /// via `.sheet(item: $previewFile)` where the item is a `URL` keyed by
 /// `absoluteString`. When the agent rewrites a file in place the path — hence
 /// the URL identity — is unchanged, so SwiftUI may reuse the existing preview
-/// view without re-running a bare `.task {}` (which only fires once per view
+/// view without re-running a bare `.taskCompat {}` (which only fires once per view
 /// appearance). The bubble image path already solved this with
 /// `.task(id: minisMediaCacheKey(...))`; mirror it here with a cheap stat so a
 /// same-path rewrite re-reads the file. Unlike minisMediaCacheKey this takes the
@@ -1131,7 +1131,7 @@ struct MinisHTMLPreviewView: View {
                                       sourceSessionId: AIChatViewModel.activeSessionId)
                 }
         }
-        .presentationDetents([.large])
+        .presentationDetentsCompat([.large])
         // [T-ios-html-preview-wide-sheet] Widen to a page-style sheet on
         // iPad/Mac, matching MinisMarkdownPreviewView. iPhone unaffected.
         .modifier(WideSheetSizingModifier())

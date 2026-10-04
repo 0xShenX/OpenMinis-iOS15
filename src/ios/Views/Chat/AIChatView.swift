@@ -53,7 +53,7 @@ private final class CachedViewModel: ObservableObject {
         cancellable = vm.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
 
-        // iOS 16 fix: When NavigationStack recreates the @StateObject, the new
+        // iOS 16 fix: When NavigationStackCompat recreates the @StateObject, the new
         // CachedViewModel may wrap a VM that already has messages loaded. Force
         // a re-render so SwiftUI picks up the current state, since objectWillChange
         // events between the old and new subscription may have been lost.
@@ -821,7 +821,7 @@ struct AIChatView: View {
         }
         .sheet(item: $locateDownloadTarget) { target in
             if let sid = vm.sessionId {
-                NavigationStack {
+                NavigationStackCompat {
                     FileBrowserView(
                         rootPath: AIChatViewModel.minisWorkspacePersistentDir(for: sid),
                         rootLabel: "/var/minis/workspace",
@@ -962,7 +962,7 @@ struct AIChatView: View {
         }
         .sheet(item: $previewAudioFile) { fileURL in
             MinisAudioPreviewView(fileURL: fileURL)
-                .presentationDetents([.large])
+                .presentationDetentsCompat([.large])
                 .presentationDragIndicator(.hidden)
         }
         .sheet(item: $previewTextFile) { fileURL in
@@ -1047,7 +1047,7 @@ struct AIChatView: View {
             })
         }
         .sheet(isPresented: $showFileBrowser) {
-            NavigationStack {
+            NavigationStackCompat {
                 let base = RootfsManager.shared.dataPath
                 FileBrowserView(rootPath: base, initialPath: base.appendingPathComponent("var/minis"), rootLabel: "/")
             }
@@ -1058,16 +1058,16 @@ struct AIChatView: View {
             })
         }
         .sheet(isPresented: $showModelPicker) {
-            NavigationStack {
+            NavigationStackCompat {
                 SessionModelPicker(sessionId: vm.sessionId) {
                     await vm.ensureSessionReturningId()
                 }
             }
-            .presentationDetents([.large])
+            .presentationDetentsCompat([.large])
         }
         .sheet(isPresented: $showTokenUsage) {
             TokenUsageSheet(vm: cached.vm)
-                .presentationDetents([.fraction(0.8), .large])
+                .presentationDetentsCompat([.fraction(0.8), .large])
         }
         .sheet(item: $screenshotPreview) { preview in
             ChatScreenshotPreviewSheet(image: preview.image)
@@ -1154,7 +1154,7 @@ struct AIChatView: View {
         .fullScreenCover(isPresented: $showTerminal) {
             terminalInitCommand = nil
         } content: {
-            NavigationStack {
+            NavigationStackCompat {
                 ISHTerminalView(sessionId: vm.sessionId, showCloseButton: true, initCommand: terminalInitCommand)
                     .onAppear {
                         if let sid = vm.sessionId {
@@ -1327,7 +1327,7 @@ struct AIChatView: View {
             if let sessionId {
                 if cached.isNew || (vm.messages.isEmpty && !vm.isLoadingSession) {
                     // Load session if: (a) VM is freshly created, or (b) cache hit but messages
-                    // are empty — this can happen on iOS 16 where NavigationStack may recreate
+                    // are empty — this can happen on iOS 16 where NavigationStackCompat may recreate
                     // @StateObject unexpectedly, causing isNew=false but an empty VM.
                     minisLogger.info("🔄SESSION AIChatView.onAppear loading session \(sessionId) isNew=\(cached.isNew) msgs=\(vm.messages.count)")
                     // [T-ios-session-coldload-listsessions-block] .userInitiated
@@ -2562,7 +2562,7 @@ struct AIChatView: View {
                     showThinkingLevelSheet = false
                 }
             )
-            .presentationDetents([.medium])
+            .presentationDetentsCompat([.medium])
         }
     }
 
@@ -5232,7 +5232,7 @@ private struct ProviderImportSheet: View {
             }
         }
         .padding(24)
-        .presentationDetents([.height(360), .medium])
+        .presentationDetentsCompat([.height(360), .medium])
         .presentationDragIndicator(.visible)
         // Swipe-to-dismiss without tapping a button still needs cleanup.
         .onDisappear { if !chose { onCancel() } }
@@ -5295,7 +5295,7 @@ struct NavBarStyleModifier: ViewModifier {
     /// the safe-area measuring overlay entirely.
     ///
     /// That overlay writes `topSafeAreaInset` from an `onGeometryChange`
-    /// action. A tool sheet presented from OUTSIDE the page's NavigationStack
+    /// action. A tool sheet presented from OUTSIDE the page's NavigationStackCompat
     /// (SheetOverlayView, a child VC of the message list) changes the top inset
     /// as it presents and dismisses, so the action fires DURING the dismissal's
     /// view-graph update. On the agent transcript page that update ends with
@@ -5471,7 +5471,7 @@ private struct ChatToolbarKey: Equatable {
 
 /// [T-ios-navbar-toolbar-host] Zero-footprint host that owns the navigation
 /// toolbar. Attached via .background on the chat content, so it sits inside
-/// the NavigationStack destination (toolbar registers from any descendant),
+/// the NavigationStackCompat destination (toolbar registers from any descendant),
 /// occupies no layout, and — being Equatable on the toolbar's displayed
 /// inputs — its body (the ToolbarContent builder) only re-runs when something
 /// the toolbar actually shows changes. Streaming ticks leave the key equal,
@@ -6032,7 +6032,7 @@ private struct MoveToSessionSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             List {
                 if !isSearching {
                     Button {
@@ -6074,7 +6074,7 @@ private struct MoveToSessionSheet: View {
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: AppLocalized("Search chats..."))
+            .searchableCompat(text: $searchText, prompt: AppLocalized("Search chats..."))
             .onChange(of: searchText) { _ in scheduleSearch() }
             .navigationTitle(AppLocalized("Move to…"))
             .navigationBarTitleDisplayMode(.inline)
@@ -6084,7 +6084,7 @@ private struct MoveToSessionSheet: View {
                 }
             }
         }
-        .task {
+        .taskCompat {
             // [T-child-session-leak] Agent child sessions are hidden from the
             // main list; they must not be offered as move targets either.
             //
@@ -6448,7 +6448,7 @@ private struct SpeechLanguagePickerSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             List {
                 let preferred = filteredLocales.filter { preferredCodes.contains($0.language.languageCode?.identifier ?? "") }
                 let others = filteredLocales.filter { !preferredCodes.contains($0.language.languageCode?.identifier ?? "") }
@@ -6469,7 +6469,7 @@ private struct SpeechLanguagePickerSheet: View {
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: Text("Search Languages", comment: "Search field placeholder for speech language picker"))
+            .searchableCompat(text: $searchText, prompt: Text("Search Languages", comment: "Search field placeholder for speech language picker"))
             .navigationTitle(Text("Voice Language", comment: "Navigation title for speech language picker"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -6480,7 +6480,7 @@ private struct SpeechLanguagePickerSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetentsCompat([.medium, .large])
     }
 
     private func languageRow(_ loc: Locale) -> some View {
@@ -6500,7 +6500,7 @@ private struct SpeechLanguagePickerSheet: View {
                 if loc.identifier == speechManager.locale.identifier {
                     Image(systemName: "checkmark")
                         .foregroundStyle(Color.accentColor)
-                        .fontWeight(.semibold)
+                        .fontWeightCompat(.semibold)
                 }
             }
         }
@@ -6520,7 +6520,7 @@ struct CompactSummarySheet: View {
     @State private var showRevertConfirm = false
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             VStack(spacing: 0) {
                 SelectableTextView(text: summary)
                     .padding(.horizontal, 16)
@@ -6573,7 +6573,7 @@ struct CompactSummarySheet: View {
                 Text("The summary will be discarded and the messages it covered will become active again. This may push the conversation past the model's context window — if that happens, long-press a message to re-compact from that point.")
             }
         }
-        .presentationDetents([.large])
+        .presentationDetentsCompat([.large])
     }
 }
 
@@ -6616,7 +6616,7 @@ private struct TokenUsageSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             List {
                 let s = vm.sessionTokenStats
 

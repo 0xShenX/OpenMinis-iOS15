@@ -764,7 +764,7 @@ private struct FolderPickerSheet: View {
     private var sessionCount: Int { sessionIds.count }
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             List {
                 Section {
                     HStack {
@@ -811,7 +811,7 @@ private struct FolderPickerSheet: View {
                         Spacer()
                         Button("Create", action: createIfNamed)
                             .buttonStyle(.borderless)
-                            .fontWeight(.semibold)
+                            .fontWeightCompat(.semibold)
                             .disabled(trimmedName.isEmpty || duplicateFolder != nil)
                     }
                     // [T-folder-duplicate-name] Name already taken. Says so, and
@@ -1079,7 +1079,7 @@ private let rowHeightLog = AppLogger(category: "RowHeight")
 /// Already ruled out, do not retry: `.scrollEdgeEffectStyle(.hard)` (the style
 /// applies but the height is unchanged, and it does not cover sticky headers —
 /// same report in Apple forums thread/795159); an opaque `.background` plus
-/// `.scrollContentBackground(.hidden)` (the list background is not what is
+/// `.scrollContentBackgroundCompat(.hidden)` (the list background is not what is
 /// sampled); mutating the effect view's hidden/alpha/frame at runtime (the
 /// system rebuilds and restores it on every layout, so the experiment shows
 /// nothing).
@@ -1546,7 +1546,7 @@ struct ContentView: View {
     @State private var consumedQuickActionTrigger: Int = 0
 
     /// Set when `handleNewChatRequest()` had to pop the iPhone
-    /// NavigationStack before it could open the new draft session.
+    /// NavigationStackCompat before it could open the new draft session.
     /// `onChange(of: navigationPath.count == 0)` watches this and
     /// dispatches the new-draft open once the pop has fully settled.
     @State private var pendingNewChatAfterPop: Bool = false
@@ -1683,7 +1683,7 @@ struct ContentView: View {
         .onAppear {
             if quickActionRouter.newChatTrigger != consumedQuickActionTrigger {
                 consumedQuickActionTrigger = quickActionRouter.newChatTrigger
-                // Defer one runloop so the NavigationStack body has a
+                // Defer one runloop so the NavigationStackCompat body has a
                 // chance to attach `$navigationPath` before we append to
                 // it — otherwise the append on a freshly-mounted stack
                 // can be lost.
@@ -1709,7 +1709,7 @@ struct ContentView: View {
             // `.id(appLanguage)` rebuild above) — would leave the push stranded
             // with no later transition to release it. Deferred one runloop for
             // the same reason the quick-action path above is: the
-            // NavigationStack must have attached `$navigationPath` first.
+            // NavigationStackCompat must have attached `$navigationPath` first.
             DispatchQueue.main.async {
                 flushPendingBackgroundNavigation()
             }
@@ -1820,7 +1820,7 @@ struct ContentView: View {
             }
         }
         .fullScreenCover(isPresented: $showTerminal) {
-            NavigationStack {
+            NavigationStackCompat {
                 ISHTerminalView(showCloseButton: true)
             }
         }
@@ -1832,7 +1832,7 @@ struct ContentView: View {
             case .settings:
                 SettingsSheet(showTerminal: $showTerminal)
             case .rootfsManagement:
-                NavigationStack {
+                NavigationStackCompat {
                     RootfsManagementView()
                         .toolbar {
                             ToolbarItem(placement: .topBarTrailing) {
@@ -1843,11 +1843,11 @@ struct ContentView: View {
             case .browser:
                 BrowserSheetView(pool: browserPool)
             case .browserManagement:
-                NavigationStack {
+                NavigationStackCompat {
                     BrowserManagementView(pool: browserPool)
                 }
             case .syncMigrationDetail:
-                NavigationStack {
+                NavigationStackCompat {
                     SyncMigrationDetailView()
                         .toolbar {
                             ToolbarItem(placement: .topBarTrailing) {
@@ -1876,7 +1876,7 @@ struct ContentView: View {
             .onAppear {
                 print("[DELETE] Sheet appeared. singleDeleteInfo is \(singleDeleteInfo == nil ? "nil" : "non-nil, sessionCount=\(singleDeleteInfo!.sessionCount)")")
             }
-            .presentationDetents([.medium])
+            .presentationDetentsCompat([.medium])
         }
         .sheet(item: $sessionToEdit) { session in
             SessionEditSheet(session: session) { newTitle, newCategory in
@@ -1888,7 +1888,7 @@ struct ContentView: View {
                 }
                 sessionToEdit = nil
             }
-            .presentationDetents([.medium])
+            .presentationDetentsCompat([.medium])
         }
         .sheet(isPresented: $showDeleteConfirm, onDismiss: {
             if deleteInfo == nil {
@@ -1905,7 +1905,7 @@ struct ContentView: View {
                 deleteSelectedSessions()
                 showDeleteConfirm = false
             }
-            .presentationDetents([.medium])
+            .presentationDetentsCompat([.medium])
         }
         .sheet(isPresented: $showExportPreview) {
             ExportPreviewSheet(fileURL: exportFileURL, previewURL: exportPreviewURL, summary: exportSummary)
@@ -1940,7 +1940,7 @@ struct ContentView: View {
                 if req.fromMultiSelect { folderMoveApplied = true }
                 folderPickerRequest = nil
             }
-            .presentationDetents([.medium, .large])
+            .presentationDetentsCompat([.medium, .large])
         }
         .modifier(FolderAlertsModifier(
             folderToRename: $folderToRename,
@@ -2016,7 +2016,7 @@ struct ContentView: View {
                 .animation(.easeInOut(duration: 0.2), value: isExporting)
             }
         }
-        .task {
+        .taskCompat {
             // [T-p1-delegate-task] Hidden child sessions never reach the
             // sidebar; they are entered from their parent's helper block.
             sessions = await ChatStore.shared.listSessions().filter { !$0.isChild }
@@ -2485,7 +2485,7 @@ struct ContentView: View {
     // MARK: - Stack Layout (iPhone / narrow window)
 
     private var stackLayout: some View {
-        NavigationStack(path: $navigationPath) {
+        NavigationStackCompat(path: $navigationPath) {
             sessionList(useNavigationLinks: true)
                 .navigationDestination(for: String.self) { id in
                     // `.id(id)` mirrors detailView (iPad): navigationDestination
@@ -3175,7 +3175,7 @@ struct ContentView: View {
         // there is no sink to release mid-transaction. The loop also parks while the
         // app is backgrounded (the crash reproduced with the app in the background).
         // refreshMigrationSubtitle is idempotent (Task{@MainActor} + diff-before-assign).
-        .task { await migrationSubtitleLoop() }
+        .taskCompat { await migrationSubtitleLoop() }
         // [T-ios-soul-name-sidebar-stale] Refresh the sidebar title from SOUL.md.
         // Moved here off the churny toolbar `titleLabel` Text (which rebuilds on
         // every canOpenSync/soulName/migrationSubtitle/isSelecting change) for the
@@ -4036,7 +4036,7 @@ struct ContentView: View {
     ///      root WITHOUT animation — animated transitions race the
     ///      subsequent `openSession()` and the new chat sometimes never
     ///      appears (push coalesced into the running pop).
-    ///   2. Once the unwind has settled (NavigationStack path empty on
+    ///   2. Once the unwind has settled (NavigationStackCompat path empty on
     ///      iPhone, `selectedSessionId == nil` on iPad), open the new
     ///      draft session.
     ///   3. AIChatView's onAppear then consumes any
@@ -4603,12 +4603,12 @@ struct ContentView: View {
         .frame(maxHeight: .infinity)
         .padding(.horizontal, 32)
         .sheet(isPresented: $showAddProvider) {
-            NavigationStack {
+            NavigationStackCompat {
                 AddProviderView()
             }
         }
         .sheet(isPresented: $showSelectModels) {
-            NavigationStack {
+            NavigationStackCompat {
                 OnboardingModelSelectionView()
             }
         }
@@ -4617,7 +4617,7 @@ struct ContentView: View {
             // the Restore tab. Not auto-dismissed on success — the result
             // report is worth reading; the steps above refresh on their own
             // (restore reloads ProviderConfigStore and the session list).
-            NavigationStack {
+            NavigationStackCompat {
                 BackupAndRestoreView(initialTab: .restore)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
@@ -6295,7 +6295,7 @@ private struct DeleteConfirmSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             VStack(spacing: 0) {
                 if isLoading || info == nil {
                     Spacer()
@@ -6419,7 +6419,7 @@ private struct ExportPreviewSheet: View {
     private let previewLimit = 10000
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             VStack(spacing: 0) {
                 // Preview — summary for multi-select, full content for single.
                 if let summary {
@@ -6494,7 +6494,7 @@ private struct ExportPreviewSheet: View {
                     DocumentExportPicker(url: url)
                 }
             }
-            .task {
+            .taskCompat {
                 if summary == nil {
                     await loadPreview()
                 } else {
@@ -7478,7 +7478,7 @@ struct SessionEditSheet: View {
     ]
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             List {
                 Section("Title") {
                     TextField("Session title", text: $editTitle)
@@ -8011,7 +8011,7 @@ private struct AppearanceSettingsView: View {
                             if appLanguage == lang.id {
                                 Image(systemName: "checkmark")
                                     .foregroundStyle(.blue)
-                                    .fontWeight(.semibold)
+                                    .fontWeightCompat(.semibold)
                             }
                         }
                     }
@@ -8108,7 +8108,7 @@ private struct SettingsSheet: View {
     @State private var showFeedbackDialog = false
 
     var body: some View {
-        NavigationStack(path: $navPath) {
+        NavigationStackCompat(path: $navPath) {
             List {
                 Section {
                     NavigationLink {
@@ -8534,7 +8534,7 @@ private struct SettingsSheet: View {
     }
 
     /// Translate `DeepLinkCoordinator.pendingSettingsTarget` into a
-    /// NavigationStack push and clear the pending value. Called from
+    /// NavigationStackCompat push and clear the pending value. Called from
     /// `onAppear` (cold-start deep link) and `onChange` (deep link
     /// arriving while the sheet is already open).
     ///
@@ -8720,7 +8720,7 @@ private struct PulseRotateIcon: View {
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.primary)
             .rotationEffect(.degrees(rotation))
-            .task { await pulseLoop() }
+            .taskCompat { await pulseLoop() }
     }
     /// Reads SyncCore's currentSendDelay (5s sync sheet → 60s background)
     /// and converts to an animation cadence: animation phase ≈ delay/4,

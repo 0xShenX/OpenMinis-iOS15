@@ -1124,7 +1124,7 @@ struct ThinkingLevelSheetView: View {
     let onSelect: (ThinkingLevel) -> Void
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             List {
                 thinkingRow(level: .off, isSelected: !currentLevel.isEnabled)
                 Section {
@@ -1153,7 +1153,7 @@ struct ThinkingLevelSheetView: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .foregroundStyle(.blue)
-                        .fontWeight(.semibold)
+                        .fontWeightCompat(.semibold)
                 }
             }
         }

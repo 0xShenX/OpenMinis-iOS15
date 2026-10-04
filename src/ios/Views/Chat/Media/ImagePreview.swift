@@ -570,7 +570,7 @@ struct AsyncImagePreviewView: View {
                 .padding(.horizontal)
                 .padding(.top, 2)
             }
-            .task {
+            .taskCompat {
                 if let (data, _) = try? await URLSession.shared.data(from: url),
                    let img = UIImage(data: data) {
                     loadedImage = img

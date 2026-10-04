@@ -102,7 +102,7 @@ struct SkillsManagementView: View {
             }
         }
         .navigationTitle("Skills")
-        .searchable(text: $searchQuery, placement: .navigationBarDrawer(displayMode: .always),
+        .searchableCompat(text: $searchQuery, placement: .navigationBarDrawer(displayMode: .always),
                     prompt: Text(AppLocalized("Search skills")))
         .onAppear { store.reload() }
         .toolbar {
@@ -229,7 +229,7 @@ private struct ImportSkillSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             Form {
                 Picker("Import Method", selection: $importMode) {
                     ForEach(ImportMode.allCases, id: \.self) { mode in
@@ -912,7 +912,7 @@ struct MinisSkillsBrowserView: View {
     @StateObject private var coordinator = SkillBrowserCoordinator()
 
     var body: some View {
-        NavigationStack {
+        NavigationStackCompat {
             ZStack {
                 SkillBrowserWebView(coordinator: coordinator)
                     .ignoresSafeArea(edges: .bottom)

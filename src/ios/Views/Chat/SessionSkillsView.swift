@@ -89,7 +89,7 @@ struct SessionSkillsView: View {
         // Reference the version counter so SwiftUI refreshes on override changes.
         let _ = store.sessionOverrideVersion
 
-        NavigationStack {
+        NavigationStackCompat {
             List {
                 if store.skills.isEmpty {
                     Section {
@@ -133,7 +133,7 @@ struct SessionSkillsView: View {
             }
             .navigationTitle("Skills in Session")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchQuery, placement: .navigationBarDrawer(displayMode: .always),
+            .searchableCompat(text: $searchQuery, placement: .navigationBarDrawer(displayMode: .always),
                         prompt: Text(AppLocalized("Search skills")))
             .onAppear { store.reload() }
             .toolbar {
