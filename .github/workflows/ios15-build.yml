@@ -1,0 +1,81 @@
+name: iOS 15 Build
+
+on:
+  push:
+    branches: [ "minis(claude)" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 1
+    
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    
+    - name: Install Dependencies
+      run: |
+        brew install ninja llvm libarchive pkg-config meson
+        pip3 install meson
+    
+    - name: Setup Customization Config
+      run: |
+        cp src/ios/Configs/ProviderCustomization.xcconfig.example \
+           src/ios/Configs/ProviderCustomization.xcconfig
+    
+    - name: Build Native Dependencies
+      run: |
+        cd deps
+        ./build_ish.sh
+        ./build_ffmpeg.sh
+        ./build_lame.sh
+    
+    - name: Build Alpine Rootfs
+      run: |
+        cd deps
+        ./fetch_alpine.sh
+    
+    - name: Archive App
+      run: |
+        cd src/ios
+        xcodebuild -project Minis.xcodeproj \
+          -scheme Minis \
+          -configuration Release \
+          -archivePath build/Minis.xcarchive \
+          -sdk iphoneos \
+          -destination 'generic/platform=iOS' \
+          archive \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+    
+    - name: Export IPA
+      run: |
+        cd src/ios
+        xcodebuild -exportArchive \
+          -archivePath build/Minis.xcarchive \
+          -exportPath build \
+          -exportOptionsPlist ../../scripts/ExportOptions.plist
+    
+    - name: Verify iOS 15 Compatibility
+      run: |
+        cd src/ios/build
+        unzip -q Minis.ipa -d ipa_contents
+        vtool -show ipa_contents/Payload/Minis.app/Minis | grep minos || true
+        echo "=== Checking deployment target ==="
+        vtool -show ipa_contents/Payload/Minis.app/Minis | grep -A3 "minos 15" && echo "✓ iOS 15 compatible" || echo "✗ Requires higher iOS"
+    
+    - name: Upload IPA
+      uses: actions/upload-artifact@v4
+      with:
+        name: Minis-iOS15-${{ github.sha }}
+        path: src/ios/build/Minis.ipa
+        retention-days: 30
