@@ -43,7 +43,7 @@ jobs:
     - name: Build Alpine Rootfs
       run: |
         cd deps
-        ./fetch_alpine.sh
+        ./prepare_alpine_rootfs.sh
     
     - name: Archive App
       run: |
