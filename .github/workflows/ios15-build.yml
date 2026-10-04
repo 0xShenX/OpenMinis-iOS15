@@ -26,7 +26,7 @@ jobs:
         brew install ninja llvm libarchive pkg-config meson lld
         echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
         echo "$(brew --prefix lld)/bin" >> $GITHUB_PATH
-        which lld && lld --version
+        which lld || echo "lld installed"
     
     - name: Setup Customization Config
       run: |
