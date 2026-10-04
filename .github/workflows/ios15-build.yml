@@ -23,8 +23,11 @@ jobs:
     
     - name: Install Dependencies
       run: |
-        brew install ninja llvm libarchive pkg-config meson lld
+        brew install ninja llvm libarchive pkg-config meson
+        # Add LLVM (includes lld) to PATH
         echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
+        # Verify lld is available
+        $(brew --prefix llvm)/bin/lld --version
     
     - name: Setup Customization Config
       run: |
