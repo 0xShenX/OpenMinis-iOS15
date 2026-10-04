@@ -39,6 +39,7 @@ jobs:
         ./build_ish.sh
         ./build_ffmpeg.sh
         ./build_lame.sh
+        ./build_rclone_ios.sh
     
     - name: Build Alpine Rootfs
       run: |
