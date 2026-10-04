@@ -23,7 +23,8 @@ jobs:
     
     - name: Install Dependencies
       run: |
-        brew install ninja llvm libarchive pkg-config meson
+        brew install ninja llvm libarchive pkg-config meson lld
+        echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
     
     - name: Setup Customization Config
       run: |
