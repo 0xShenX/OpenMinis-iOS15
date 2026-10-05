@@ -72,12 +72,20 @@ private final class LegacyHostingContentView<Content: View>: UIView, UIContentVi
     required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
 
     override var intrinsicContentSize: CGSize {
-        guard bounds.width > 0 else { return CGSize(width: UIView.noIntrinsicMetric, height: 1) }
-        let target = CGSize(width: bounds.width, height: UIView.layoutFittingCompressedSize.height)
-        let size = controller.view.systemLayoutSizeFitting(
-            target,
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel
+        // UIHostingController on iOS 15 does not reliably propagate the
+        // collection cell's horizontal constraint through
+        // systemLayoutSizeFitting. That leaves SwiftUI with an effectively
+        // unbounded proposal, so long Markdown lines can keep their ideal
+        // width and be clipped by the cell. Ask the hosting view directly with
+        // the finite width UIKit gave this content view; sizeThatFits forwards
+        // that proposal into the SwiftUI layout tree.
+        let proposedWidth = bounds.width
+        guard proposedWidth > 0 else {
+            return CGSize(width: UIView.noIntrinsicMetric, height: 1)
+        }
+        controller.view.bounds.size.width = proposedWidth
+        let size = controller.view.sizeThatFits(
+            CGSize(width: proposedWidth, height: CGFloat.greatestFiniteMagnitude)
         )
         return CGSize(width: UIView.noIntrinsicMetric, height: ceil(size.height))
     }
