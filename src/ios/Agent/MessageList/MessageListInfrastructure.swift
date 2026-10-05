@@ -400,6 +400,35 @@ class SelfSizingCell: UICollectionViewCell {
             return copy
         }
 
+        // iOS 15 has no UIHostingConfiguration sizing contract. Its UIKit
+        // fallback can enter the hosting view before the cell's finite width
+        // has reached the SwiftUI tree, then return an ideal-width height.
+        // Do one explicit finite-width pass and skip UIKit's default hosting
+        // pass entirely. This is intentionally before `super`: calling super
+        // first defeats the width constraint and can leave long Markdown
+        // content measured for the wrong width.
+        if #available(iOS 16.0, *) {
+            // Keep the native UIHostingConfiguration path unchanged.
+        } else {
+            let width = layoutAttributes.size.width
+            guard width > 1 else { return layoutAttributes }
+            contentView.bounds.size.width = width
+            contentView.setNeedsLayout()
+            contentView.layoutIfNeeded()
+            let fitted = contentView.systemLayoutSizeFitting(
+                CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+                withHorizontalFittingPriority: .required,
+                verticalFittingPriority: .fittingSizeLevel
+            )
+            let copy = layoutAttributes.copy() as! UICollectionViewLayoutAttributes
+            copy.size.width = width
+            copy.size.height = ceil(max(fitted.height, 1))
+            lastComputedWidth = width
+            lastComputedHeight = copy.size.height
+            lastMeasureMediaTime = CACurrentMediaTime()
+            return copy
+        }
+
         // [T-ios-selfsizingcell-super-plaf-async-race, crash3 build 43 iOS 18.3]
         // `super.preferredLayoutAttributesFitting` is NOT a passive attribute
         // copy — it drives UICollectionViewCell.systemLayoutSizeFittingSize →
